@@ -1,0 +1,122 @@
+[
+    {
+        "testcase": 1,
+        "viterbi_errors": 59,
+        "bcjr_errors": 49,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 2,
+        "viterbi_errors": 5,
+        "bcjr_errors": 8,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 3,
+        "viterbi_errors": 7,
+        "bcjr_errors": 10,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 4,
+        "viterbi_errors": 56,
+        "bcjr_errors": 55,
+        "turbo_errors": 2
+    },
+    {
+        "testcase": 5,
+        "viterbi_errors": 13,
+        "bcjr_errors": 12,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 6,
+        "viterbi_errors": 83,
+        "bcjr_errors": 72,
+        "turbo_errors": 10
+    },
+    {
+        "testcase": 7,
+        "viterbi_errors": 15,
+        "bcjr_errors": 17,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 8,
+        "viterbi_errors": 65,
+        "bcjr_errors": 54,
+        "turbo_errors": 2
+    },
+    {
+        "testcase": 9,
+        "viterbi_errors": 24,
+        "bcjr_errors": 25,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 10,
+        "viterbi_errors": 10,
+        "bcjr_errors": 13,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 11,
+        "viterbi_errors": 67,
+        "bcjr_errors": 61,
+        "turbo_errors": 7
+    },
+    {
+        "testcase": 12,
+        "viterbi_errors": 4,
+        "bcjr_errors": 3,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 13,
+        "viterbi_errors": 18,
+        "bcjr_errors": 21,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 14,
+        "viterbi_errors": 21,
+        "bcjr_errors": 15,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 15,
+        "viterbi_errors": 28,
+        "bcjr_errors": 20,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 16,
+        "viterbi_errors": 65,
+        "bcjr_errors": 64,
+        "turbo_errors": 5
+    },
+    {
+        "testcase": 17,
+        "viterbi_errors": 23,
+        "bcjr_errors": 24,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 18,
+        "viterbi_errors": 47,
+        "bcjr_errors": 46,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 19,
+        "viterbi_errors": 56,
+        "bcjr_errors": 47,
+        "turbo_errors": 0
+    },
+    {
+        "testcase": 20,
+        "viterbi_errors": 5,
+        "bcjr_errors": 5,
+        "turbo_errors": 0
+    }
+]

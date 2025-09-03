@@ -1,0 +1,140 @@
+[
+    {
+        "TestCaseNumber": 1,
+        "Input": {
+            "TestCaseNumber": 1,
+            "Factors_Count": 3,
+            "State_Count": 2,
+            "Number of Observations": 5,
+            "Observation Sequence": [
+                0,
+                1,
+                1,
+                0,
+                1
+            ],
+            "Transition Potentials": {
+                "0": [
+                    11,
+                    4,
+                    6,
+                    5
+                ],
+                "1": [
+                    5,
+                    6,
+                    12,
+                    10
+                ],
+                "2": [
+                    7,
+                    8,
+                    9,
+                    3
+                ]
+            },
+            "State_Factor_Potentials": [
+                    10,
+                    15,
+                    20,
+                    5,
+                    12,
+                    8,
+                    18,
+                    12,                
+                    14,
+                    9,
+                    11,
+                    13,
+                    16,
+                    7,
+                    19,    
+                    3
+            ]
+        }
+    },
+    {
+    "TestCaseNumber": 2,
+    "Input": {
+      "TestCaseNumber": 2,
+      "Factors_Count": 3,
+      "State_Count": 2,
+      "Number of Observations": 6,
+      "Observation Sequence": [1, 0, 1, 1, 0, 1],
+      "Transition Potentials": {
+        "0": [9, 3, 4, 8],
+        "1": [6, 7, 10, 5],
+        "2": [8, 4, 7, 6]
+      },
+      "State_Factor_Potentials": [
+        13, 7,
+        9, 11,
+        15, 5,
+        12, 8,
+        10, 10,
+        6, 14,
+        11, 9,
+        4, 16
+      ]
+    }
+  },
+  {
+        "TestCaseNumber": 3,
+        "Input": {
+            "TestCaseNumber": 3,
+            "Factors_Count": 2,
+            "State_Count": 2,
+            "Number of Observations": 4,
+            "Observation Sequence": [0, 1, 0, 0],
+            "Transition Potentials": {
+                "0": [
+                    8, 2,
+                    3, 7
+                ],
+                "1": [
+                    3, 7,
+                    9, 1
+                ]
+            },
+            "State_Factor_Potentials": [
+                20, 2,
+                8, 12,
+                7, 13,
+                3, 25
+            ]
+        }
+    },
+    {
+        "TestCaseNumber": 4,
+        "Input": {
+            "TestCaseNumber": 4,
+            "Factors_Count": 2,
+            "State_Count": 3,
+            "Number of Observations": 3,
+            "Observation Sequence": [0, 2, 1],
+            "Transition Potentials": {
+                "0": [
+                    10, 2, 1,
+                    3, 9, 2,
+                    1, 1, 8
+                ],
+                "1": [
+                    1, 10, 1,
+                    1, 1, 10,
+                    10, 1, 1
+                ]
+            },
+            "State_Factor_Potentials": [
+                15, 2, 1,
+                8, 8, 2,
+                4, 9, 5,
+                3, 12, 3,
+                2, 14, 2,
+                4, 11, 3,
+                9, 1, 8,
+                7, 2, 9,
+                5, 3, 10
+            ]
+        }
+    }
+]

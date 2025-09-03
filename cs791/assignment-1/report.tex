@@ -1,0 +1,100 @@
+\documentclass[12pt]{article}
+
+\usepackage{graphicx, url}
+\usepackage[T1]{fontenc}
+\usepackage[english=american]{csquotes}
+\usepackage{float}
+\usepackage{comment}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{subcaption}
+\usepackage{setspace}
+\usepackage{listings}
+\usepackage[scaled=0.85]{beramono}
+\usepackage{tabularray}
+\usepackage[hidelinks, breaklinks=true]{hyperref}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    allcolors=blue,
+}
+
+\begin{document}
+
+\section{Loopy Belief Propagation}
+\subsection{Introduction}
+Given a Factorial Hidden Markov Model (FHMM) with:
+\begin{itemize}
+    \item $M$ independent hidden state chains (factors)
+    \item $K$ possible states per factor
+    \item $T$ time steps
+    \item Observation sequence $O = (o_1, o_2, \ldots, o_T)$
+    \item Transition potentials $\phi_i(s_t^i, s_{t-1}^i)$ for each factor $i$
+    \item Emission potentials $\phi_O(o_t, s_t^1, s_t^2, \ldots, s_t^F)$
+\end{itemize}
+
+Compute marginal probabilities $P(s_t^i)$ for each variable $s_t^i$.
+
+\subsection{Algorithm}
+
+\subsection{Message Passing Scheme}
+
+\subsubsection{Transition Factor to Variable Messages}
+For each transition factor between times $t$ and $t+1$:
+\begin{align}
+m_{T_{t,f} \rightarrow V_{t,f}}(s_t^f) &= \sum_{s_{t+1}^f} \phi_f(s_{t+1}^f, s_t^f) \cdot m_{V_{t+1,f} \rightarrow T_{t,f}}(s_{t+1}^f) \\
+m_{T_{t,f} \rightarrow V_{t+1,f}}(s_{t+1}^f) &= \sum_{s_t^f} \phi_f(s_{t+1}^f, s_t^f) \cdot m_{V_{t,f} \rightarrow T_{t,f}}(s_t^f)
+\end{align}
+
+\subsubsection{Observation Factor to Variable Messages}
+For each time slice $t$, compute messages from the observation factor to each variable:
+\begin{align}
+m_{O_t \rightarrow V_{t,f}}(s_t^f) &= \sum_{\mathbf{S}_t \setminus \{\mathbf{s}_t^f\}} \phi_O(o_t, \mathbf{s}_t) \prod_{g \neq f} m_{V_{t,g} \rightarrow O_t}(s_t^g)
+\end{align}
+
+\subsubsection{Variable to Factor Messages}
+Each variable sends messages to its neighboring factors, excluding the target factor:
+\begin{align}
+m_{V_{t,f} \rightarrow O_t}(s_t^f) &= \prod_{T' \in \mathcal{N}(V_{t,f}) \setminus O_t} m_{T' \rightarrow V_{t,f}}(s_t^f) \\
+m_{V_{t,f} \rightarrow T_{t,f}}(s_t^f) &= \prod_{F' \in \mathcal{N}(V_{t,f}) \setminus T_{t,f}} m_{F' \rightarrow V_{t,f}}(s_t^f)
+\end{align}
+
+\subsection{Time Complexity}
+
+\subsubsection{Per-Iteration Complexity Breakdown}
+
+\begin{itemize}
+  \item \textbf{Transition Factor Updates:} $O((T-1) \times M \times K \times K) = O(T \times M \times K^2)$
+  \item \textbf{Observation Factor Updates:} $O(T \times K^M \times M \times M) = O(T \times K^M \times M^2)$
+  \item \textbf{Variable Message Updates:} $O(T \times M \times K)$
+\end{itemize}
+
+\subsubsection{Overall Complexity}
+
+\begin{itemize}
+  \item \textbf{Per iteration:}
+\begin{align}
+C_{\text{iter}} &= O(T \times M \times K^2) + O(T \times K^M \times M^2) \\
+&= O(T \times M \times K^2 + T \times K^M \times M^2)
+\end{align}
+  \item \textbf{Final Belief Computation:} $O(T \times M \times K)$
+\end{itemize}
+
+\textbf{Total algorithm:}
+\begin{align}
+C_{\text{total}} &= C_{\text{iter}} \times \text{max\_iterations} + O(T \times M \times K) \\
+&= O(\text{max\_iterations} \times T \times M \times (K^2 + K^M \times M)) \\
+&= O(T \times M^2 \times K^M)
+\end{align}
+
+\subsection{References}
+\begin{itemize}
+  \item \url{https://www.cs.cmu.edu/~epxing/Class/10708-14/scribe_notes/scribe_note_lecture13.pdf}
+  \item \url{https://arxiv.org/pdf/1301.6725}
+  \item \url{https://www.cs.ubc.ca/~murphyk/papers/loopy_uai99.pdf }
+\item \url{https://jessicastringham.net/2019/01/09/sum-product-message-passing/}
+\item \url{https://github.com/parthnatekar/Loopy-Belief-Propagation/}
+\end{itemize}
+
+\end{document}

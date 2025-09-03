@@ -1,0 +1,122 @@
+[
+    {
+        "testcase": 1,
+        "viterbi_errors": 484,
+        "bcjr_errors": 484,
+        "turbo_errors": 484
+    },
+    {
+        "testcase": 2,
+        "viterbi_errors": 499,
+        "bcjr_errors": 515,
+        "turbo_errors": 511
+    },
+    {
+        "testcase": 3,
+        "viterbi_errors": 494,
+        "bcjr_errors": 506,
+        "turbo_errors": 508
+    },
+    {
+        "testcase": 4,
+        "viterbi_errors": 482,
+        "bcjr_errors": 513,
+        "turbo_errors": 542
+    },
+    {
+        "testcase": 5,
+        "viterbi_errors": 497,
+        "bcjr_errors": 516,
+        "turbo_errors": 484
+    },
+    {
+        "testcase": 6,
+        "viterbi_errors": 505,
+        "bcjr_errors": 484,
+        "turbo_errors": 504
+    },
+    {
+        "testcase": 7,
+        "viterbi_errors": 487,
+        "bcjr_errors": 506,
+        "turbo_errors": 479
+    },
+    {
+        "testcase": 8,
+        "viterbi_errors": 487,
+        "bcjr_errors": 495,
+        "turbo_errors": 482
+    },
+    {
+        "testcase": 9,
+        "viterbi_errors": 509,
+        "bcjr_errors": 522,
+        "turbo_errors": 499
+    },
+    {
+        "testcase": 10,
+        "viterbi_errors": 505,
+        "bcjr_errors": 499,
+        "turbo_errors": 492
+    },
+    {
+        "testcase": 11,
+        "viterbi_errors": 495,
+        "bcjr_errors": 501,
+        "turbo_errors": 487
+    },
+    {
+        "testcase": 12,
+        "viterbi_errors": 488,
+        "bcjr_errors": 503,
+        "turbo_errors": 456
+    },
+    {
+        "testcase": 13,
+        "viterbi_errors": 492,
+        "bcjr_errors": 517,
+        "turbo_errors": 487
+    },
+    {
+        "testcase": 14,
+        "viterbi_errors": 485,
+        "bcjr_errors": 484,
+        "turbo_errors": 502
+    },
+    {
+        "testcase": 15,
+        "viterbi_errors": 530,
+        "bcjr_errors": 466,
+        "turbo_errors": 494
+    },
+    {
+        "testcase": 16,
+        "viterbi_errors": 490,
+        "bcjr_errors": 529,
+        "turbo_errors": 510
+    },
+    {
+        "testcase": 17,
+        "viterbi_errors": 494,
+        "bcjr_errors": 508,
+        "turbo_errors": 505
+    },
+    {
+        "testcase": 18,
+        "viterbi_errors": 493,
+        "bcjr_errors": 505,
+        "turbo_errors": 508
+    },
+    {
+        "testcase": 19,
+        "viterbi_errors": 495,
+        "bcjr_errors": 483,
+        "turbo_errors": 501
+    },
+    {
+        "testcase": 20,
+        "viterbi_errors": 488,
+        "bcjr_errors": 497,
+        "turbo_errors": 489
+    }
+]
