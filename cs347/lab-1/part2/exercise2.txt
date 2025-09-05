@@ -1,0 +1,10 @@
+memory_1.c => VMSize = 6568 kB, VMRSS = 5376 kB
+memory_2.c => VMSize = 10472 kB, VMRSS = 9216 kB
+memory_3.c => VMSize = 6568 kB, VMRSS = 5376 kB
+memory_4.c => VMSize = 6568 kB, VMRSS = 5376 kB
+
+The 2nd program takes up double the amount of space since it allocates an array
+of double the size while all the others allocate a smaller array. The 3rd and
+4th program also set custom values in the array but that doesn't change
+anything about the memory footprint since space was already allocated for those
+items!

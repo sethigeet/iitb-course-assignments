@@ -1,0 +1,23 @@
+Architecture = x86_64
+Byte Order = Little Endian
+Address Sizes = 48 bit
+
+CPU sockets = 1
+Cores = 8
+CPU threads = 16
+
+L1 cache size = 512 KiB
+L2 cache size = 4 MiB
+L3 cache size = 16 MiB
+
+main memory = 7788736 kB (total), 6292740 kB (free)
+secondary memory (swap) = 2097152 kB (total), 2097152 kB (free)
+
+# `ps -eo status | grep -c 'R|S|T|Z'`
+total processes = 80
+running processes = 1
+sleeping processes = 75 
+stopped processes = 0
+zombie processes = 4
+
+context switches = 1303216

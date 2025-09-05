@@ -1,0 +1,22 @@
+# Files Opened
+
+```
+COMMAND     PID USER   FD   TYPE DEVICE SIZE/OFF   NODE NAME
+openfiles 14857 geet  cwd    DIR   8,48     4096 270535 /home/geet/temp/cs347/lab-1/cs347M-lab1/cs347M-lab1/task2/files
+openfiles 14857 geet  rtd    DIR   8,48     4096      2 /
+openfiles 14857 geet  txt    REG   8,48     8760 270537 /home/geet/temp/cs347/lab-1/cs347M-lab1/cs347M-lab1/task2/files/openfiles
+openfiles 14857 geet  mem    REG   8,48  2220400  23777 /usr/lib/x86_64-linux-gnu/libc.so.6
+openfiles 14857 geet  mem    REG   8,48   240936  23774 /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+openfiles 14857 geet    0u   CHR  136,2      0t0      5 /dev/pts/2
+openfiles 14857 geet    1u   CHR  136,2      0t0      5 /dev/pts/2
+openfiles 14857 geet    2u   CHR  136,2      0t0      5 /dev/pts/2
+openfiles 14857 geet    3w   REG   8,48        0 270578 /tmp/welocme to OS
+openfiles 14857 geet    4w   REG   8,48        0 270579 /tmp/CS333
+openfiles 14857 geet    5u   CHR    5,2      0t0     86 /dev/ptmx
+openfiles 14857 geet    6w   REG   8,48        0 270580 /tmp/CS347
+```
+
+# Process to Obtain this Info
+
+1. First obtain the PID of the `openfiles` process using the `ps` and `grep` commands
+2. Next use the `lsof` command to list all the files opened by the given process id (pid) which we obtained in the first step

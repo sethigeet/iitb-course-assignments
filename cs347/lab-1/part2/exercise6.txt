@@ -1,0 +1,13 @@
+# List of all block devices
+
+- Found out by running `lsblk -f`
+
+```
+NAME FSTYPE FSVER LABEL UUID                                 FSAVAIL FSUSE% MOUNTPOINTS
+sda  ext4   1.0
+sdb  ext4   1.0
+sdc  swap   1           8b6199a1-e7c7-430e-bf79-9139e7192c19                [SWAP]
+sdd  ext4   1.0         6e61923f-4c41-4458-b04d-c74d60dac206  834.9G    12% /snap
+                                                                            /mnt/wslg/distro
+                                                                            /
+```

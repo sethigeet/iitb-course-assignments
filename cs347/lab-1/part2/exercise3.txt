@@ -1,0 +1,5 @@
+17 subprocesses were created by the parent.
+
+To find this, I listed out all the processes along with their PIDs and PPIDs
+using the `ps` command. Then looking at the output, I counted all the processes
+with `command` as `subprocesses` and having the same `PPID` to get the answer.
