@@ -111,20 +111,15 @@ class UCB(Algorithm):
 
     def give_pull(self):
         # START EDITING HERE
-        # If any arm hasn't been pulled yet, pull it
+        # Make sure all arms have been pulled at least once
         for arm in range(self.num_arms):
             if self.counts[arm] == 0:
                 return arm
 
-        # Calculate UCB values for all arms
-        ucb_values = np.zeros(self.num_arms)
-        for arm in range(self.num_arms):
-            exploration_bonus = math.sqrt(
-                2 * math.log(self.total_pulls) / self.counts[arm]
-            )
-            ucb_values[arm] = self.means[arm] + exploration_bonus
-
-        return np.argmax(ucb_values)
+        # Find the arm with the highest UCB
+        return np.argmax(
+            self.means + np.sqrt(2 * math.log(self.total_pulls) / self.counts)
+        )
         # END EDITING HERE
 
     def get_reward(self, arm_index, reward):
@@ -150,19 +145,18 @@ class KL_UCB(Algorithm):
 
     def give_pull(self):
         # START EDITING HERE
-        # If any arm hasn't been pulled yet, pull it
+        # Make sure all arms have been pulled at least once
         for arm in range(self.num_arms):
             if self.counts[arm] == 0:
                 return arm
 
-        # Calculate KL-UCB values for all arms
-        kl_ucb_values = np.zeros(self.num_arms)
-        for arm in range(self.num_arms):
-            kl_ucb_values[arm] = calc_kl_ucb(
-                self.means[arm], self.counts[arm], self.total_pulls
-            )
-
-        return np.argmax(kl_ucb_values)
+        # Find the arm with the highest KL-UCB
+        return np.argmax(
+            [
+                calc_kl_ucb(self.means[arm], self.counts[arm], self.total_pulls)
+                for arm in range(self.num_arms)
+            ]
+        )
         # END EDITING HERE
 
     def get_reward(self, arm_index, reward):
@@ -188,13 +182,7 @@ class Thompson_Sampling(Algorithm):
     def give_pull(self):
         # START EDITING HERE
         # Sample from Beta distribution for each arm
-        sampled_values = np.zeros(self.num_arms)
-        for arm in range(self.num_arms):
-            sampled_values[arm] = np.random.beta(
-                1 + self.successes[arm], 1 + self.failures[arm]
-            )
-
-        return np.argmax(sampled_values)
+        return np.argmax(np.random.beta(1 + self.successes, 1 + self.failures))
         # END EDITING HERE
 
     def get_reward(self, arm_index, reward):
