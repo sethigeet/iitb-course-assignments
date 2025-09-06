@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, overload
 
 import numpy as np
 
@@ -64,7 +64,18 @@ class Policy:
         self.counts[:] = 0
         self.sums[:] = 0.0
 
-    def update(self, arm: int, reward: float):
+    @overload
+    def update(self, arm: int, reward: float) -> None: ...
+
+    @overload
+    def update(self, arm: int, reward: float, health: list[float]) -> None: ...
+
+    def update(
+        self, arm: int, reward: float, health: list[float] | None = None
+    ) -> None:
+        if health is not None:
+            self.health = np.array(health, dtype=float)
+
         self.counts[arm] += 1
         self.sums[arm] += reward
 
@@ -88,58 +99,31 @@ class StudentPolicy(Policy):
 
     def __init__(self, K: int, rng: Optional[np.random.Generator] = None):
         super().__init__(K, rng)
-        # Gamma prior for Poisson mean (conjugate): mu ~ Gamma(alpha0, beta0)
-        self.alpha0 = 1.0
-        self.beta0 = 1.0
-        self.alpha = np.full(K, self.alpha0, dtype=float)
-        self.beta = np.full(K, self.beta0, dtype=float)
-        self.health = None  # will be populated from env via update(..., health)
-        self._refined_done = False
+        self.health = np.full(K, 100.0, dtype=float)
 
     def reset_stats(self):
         super().reset_stats()
-        self.alpha[:] = self.alpha0
-        self.beta[:] = self.beta0
-        self.health = None
-        self._refined_done = False
+        self.health = np.full(self.K, 100.0, dtype=float)
 
     def select_arm(self, t: int) -> int:
-        # Ensure each arm is tried at least once (minimal exploration)
+        # Make sure all arms have been tried at least once
         for a in range(self.K):
             if self.counts[a] == 0:
                 return a
 
-        # Use current health from env if available; otherwise assume equal healths
-        if self.health is None:
-            health = np.ones(self.K, dtype=float)
-        else:
-            health = self.health.astype(float)
+        # mu_hat = np.random.gamma(self.sums, self.counts)
+        # mu_hat = np.random.gamma(1.5 + self.sums, 1.0 + self.counts)
+        # mu_hat = np.random.gamma(5.43 + self.sums, 3.62 + self.counts)
+        mu_hat = self.sums / self.counts
+        mu_hat = np.maximum(mu_hat, 1e-9)  # Prevent division by zero
+        # Return the door with the least expected remaining steps
+        return int(np.argmin(self.health / mu_hat))
 
-        # Posterior mean of Poisson rate under Gamma(alpha, beta)
-        beta_safe = np.maximum(self.beta, 1e-9)
-        mu_hat = self.alpha / beta_safe
-
-        # Minimal refinement: after each arm has 1 sample, give top-2 arms one extra sample if needed
-        if not self._refined_done:
-            top2 = np.argsort(-mu_hat)[: min(2, self.K)]
-            for a in top2:
-                if self.counts[a] < 2:
-                    return int(a)
-            self._refined_done = True
-
-        # Commit: choose arm minimizing estimated remaining steps health_i / mu_hat_i
-        denom = np.maximum(mu_hat, 1e-9)
-        remaining_steps_est = health / denom
-        return int(np.argmin(remaining_steps_est))
-
-    def update(self, arm: int, reward: float, health: Optional[np.ndarray] = None):
+    def update(
+        self, arm: int, reward: float, health: list[float] | None = None
+    ) -> None:
         # Update generic stats
         super().update(arm, reward)
 
-        # Update Gamma posterior for the struck arm
-        self.alpha[arm] += float(reward)
-        self.beta[arm] += 1.0
-
-        # Keep track of current health from the environment (if provided)
         if health is not None:
             self.health = np.array(health, dtype=float)
