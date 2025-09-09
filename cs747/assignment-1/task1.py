@@ -75,8 +75,10 @@ def kl_div(p, q, eps=1e-12):
     return p * math.log(p / q) + (1 - p) * math.log((1 - p) / (1 - q))
 
 
-def calc_kl_ucb(empirical_mean, count, t, c=3.0, eps=1e-6, max_iter=50):
-    target_kl = (math.log(t) + c * math.log(math.log(t))) / count
+def calc_kl_ucb(empirical_mean, count, t, c=2.0, eps=1e-6, max_iter=25):
+    target_kl = (
+        math.log(t) + c * math.log(max(math.log(max(t, 2)), 1.0000001))
+    ) / count
 
     # Binary search for the upper bound
     low = empirical_mean
@@ -175,20 +177,20 @@ class Thompson_Sampling(Algorithm):
     def __init__(self, num_arms, horizon):
         super().__init__(num_arms, horizon)
         # START EDITING HERE
+        self.counts = np.zeros(num_arms)
         self.successes = np.zeros(num_arms)
-        self.failures = np.zeros(num_arms)
         # END EDITING HERE
 
     def give_pull(self):
         # START EDITING HERE
         # Sample from Beta distribution for each arm
-        return np.argmax(np.random.beta(1 + self.successes, 1 + self.failures))
+        return np.argmax(
+            np.random.beta(1 + self.successes, 1 + self.counts - self.successes)
+        )
         # END EDITING HERE
 
     def get_reward(self, arm_index, reward):
         # START EDITING HERE
-        if reward == 1:
-            self.successes[arm_index] += 1
-        else:
-            self.failures[arm_index] += 1
+        self.counts[arm_index] += 1
+        self.successes[arm_index] += reward
         # END EDITING HERE
