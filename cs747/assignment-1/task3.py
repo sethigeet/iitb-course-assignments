@@ -75,9 +75,10 @@ class KL_UCB_Optimized(Algorithm):
         self.successes = np.zeros(num_arms, dtype=float)
         self.t = 0
 
-        self.current_arm = -1
+        self.kl_ucbs = None
+        self.current_best_arm = -1
         self.pulls_remaining_in_batch = 0
-        self.next_batch_potential = np.ones(num_arms)
+        self.batch_size = 1.0
         self.batch_growth_factor = 1.5
         # END EDITING HERE
 
@@ -88,44 +89,59 @@ class KL_UCB_Optimized(Algorithm):
         # without any expensive calculations.
         if self.pulls_remaining_in_batch > 0:
             self.pulls_remaining_in_batch -= 1
-            return self.current_arm
+            return self.current_best_arm
 
-        # --- Start of a new decision phase ---
-
-        # Standard round-robin initialization: play each arm once.
+        # Pull each arm once
         for arm in range(self.num_arms):
             if self.counts[arm] == 0:
-                self.current_arm = arm
-                return self.current_arm
+                self.current_best_arm = arm
+                return self.current_best_arm
 
-        # Re-calculate UCB indices for all arms. This is the expensive step
-        # that our batching strategy aims to perform less frequently.
-        indices = np.zeros(self.num_arms)
-        for arm in range(self.num_arms):
-            emp_mean = self.successes[arm] / self.counts[arm]
-            indices[arm] = calc_kl_ucb(emp_mean, self.counts[arm], self.t)
+        if self.kl_ucbs is None:
+            self.kl_ucbs = np.zeros(self.num_arms)
+            for arm in range(self.num_arms):
+                emp_mean = self.successes[arm] / self.counts[arm]
+                self.kl_ucbs[arm] = calc_kl_ucb(emp_mean, self.counts[arm], self.t)
 
-        # Select the arm with the highest UCB index.
-        best_arm = int(np.argmax(indices))
-        self.current_arm = best_arm
+            self.current_best_arm = int(np.argmax(self.kl_ucbs))
+            self.next_best_arm = int(
+                np.argmax(
+                    self.kl_ucbs[~(np.arange(self.num_arms) == self.current_best_arm)]
+                )
+            )
 
-        # Safety mechanism: Reset the batch potential for any arm that was NOT chosen.
-        # This ensures that if an arm becomes the leader again, it starts with a small
-        # batch, preventing over-commitment based on stale information.
-        for arm in range(self.num_arms):
-            if arm != best_arm:
-                self.next_batch_potential[arm] = 1.0
+        # Re-calculate UCB indices for the next best arm
+        self.kl_ucbs[self.current_best_arm] = calc_kl_ucb(
+            self.successes[self.current_best_arm] / self.counts[self.current_best_arm],
+            self.counts[self.current_best_arm],
+            self.t,
+        )
+        self.kl_ucbs[self.next_best_arm] = calc_kl_ucb(
+            self.successes[self.next_best_arm] / self.counts[self.next_best_arm],
+            self.counts[self.next_best_arm],
+            self.t,
+        )
 
-        # Determine the size of the new batch for the chosen arm.
-        batch_size = int(np.ceil(self.next_batch_potential[best_arm]))
+        # Select the arm with the highest UCB index
+        best_arm = int(np.argmax(self.kl_ucbs))
+        self.current_best_arm = best_arm
 
-        # Schedule the batch pulls. The current pull is the first in the batch.
+        # Reset the batch multiplier
+        if self.current_best_arm != self.next_best_arm:
+            self.batch_size = 1.0
+            self.pulls_remaining_in_batch = 0
+            self.next_best_arm = int(
+                np.argmax(
+                    self.kl_ucbs[~(np.arange(self.num_arms) == self.current_best_arm)]
+                )
+            )
+
+        batch_size = int(np.ceil(self.batch_size))
+
         self.pulls_remaining_in_batch = batch_size - 1
+        self.batch_size *= self.batch_growth_factor
 
-        # Increase the batch potential for the chosen arm for the *next* time it is selected.
-        self.next_batch_potential[best_arm] *= self.batch_growth_factor
-
-        return self.current_arm
+        return self.current_best_arm
 
     def get_reward(self, arm_index, reward):
         # START EDITING HERE
