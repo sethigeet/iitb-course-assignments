@@ -97,7 +97,7 @@ def simulate(algorithm, probs, horizon, num_sims=50):
   for BernoulliBandit bandit, with horizon=horizon
   """
   
-  def multiple_sims(num_sims=50):
+  def multiple_sims(num_sims=3):
     with Pool(10) as pool:
       sim_out = pool.starmap(single_sim,
         [(i, algorithm, probs, horizon) for i in range(num_sims)])
@@ -138,7 +138,7 @@ def task1(algorithm, probs, num_sims=50):
   print(regrets)
   plt.plot(horizons, regrets)
   plt.title("Regret vs Horizon")
-  plt.savefig("task1-{}-{}.png".format(algorithm.__name__, time.strftime("%Y%m%d-%H%M%S")))
+  plt.savefig("task1-{}.png".format(algorithm.__name__))
   plt.clf()
 
 def task3(probs, num_sims=50):
@@ -198,7 +198,7 @@ def task3(probs, num_sims=50):
   ax2.set_yscale('log')
   
   plt.tight_layout()
-  plt.savefig(f"task3_comparison_{time.strftime('%Y%m%d-%H%M%S')}.png")
+  plt.savefig(f"task3_comparison.png")
   plt.show()
   
   return {
@@ -312,7 +312,7 @@ def task3_bonus_trajectories(probs, horizon=5000, num_sims=3):
   axes[1, 1].grid(True, alpha=0.3)
   
   plt.tight_layout()
-  plt.savefig(f"task3_bonus_trajectories_{time.strftime('%Y%m%d-%H%M%S')}.png")
+  plt.savefig(f"task3_bonus_trajectories.png")
   plt.show()
   
   return {
@@ -330,7 +330,7 @@ if __name__ == '__main__':
   # bandit instance:
   # 20 arms with uniformly distributed means
 
-  task1probs = [i/20 for i in range(20)]
+  task1probs = [i/10 for i in range(1,10)]
   task1(Eps_Greedy, task1probs, 1)
   # task1(UCB, task1probs)
   # task1(KL_UCB, task1probs)
