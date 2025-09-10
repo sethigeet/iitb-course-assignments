@@ -112,12 +112,10 @@ class StudentPolicy(Policy):
                 return a
 
         # mu_hat = np.random.gamma(self.sums, self.counts)
-        # mu_hat = np.random.gamma(1.5 + self.sums, 1.0 + self.counts)
-        # mu_hat = np.random.gamma(5.43 + self.sums, 3.62 + self.counts)
         mu_hat = self.sums / self.counts
         mu_hat = np.maximum(mu_hat, 1e-9)  # Prevent division by zero
         # Return the door with the least expected remaining steps
-        return int(np.argmin(self.health / mu_hat))
+        return int(np.argmin(self.health / np.sqrt(mu_hat)))
 
     def update(
         self, arm: int, reward: float, health: list[float] | None = None
