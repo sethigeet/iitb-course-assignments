@@ -170,16 +170,81 @@ class KL_UCB_Bonus(Algorithm):
 
     def __init__(self, num_arms, horizon):
         super().__init__(num_arms, horizon)
-        # can initialize member variables here
         # START EDITING HERE
+        self.counts = np.zeros(num_arms, dtype=int)
+        self.successes = np.zeros(num_arms, dtype=float)
+        self.t = 0
+
+        self.kl_ucbs = None
+        self.current_best_arm = -1
+        self.pulls_remaining_in_batch = 0
+        self.batch_size = 1.0
+        self.batch_growth_factor = 1.5
         # END EDITING HERE
 
     def give_pull(self):
-        # START EDITING HERE
-        pass
-        # END EDITING HERE
+        self.t += 1
+
+        # If we are in the middle of a batch, continue pulling the same arm
+        # without any expensive calculations.
+        if self.pulls_remaining_in_batch > 0:
+            self.pulls_remaining_in_batch -= 1
+            return self.current_best_arm
+
+        # Pull each arm once
+        for arm in range(self.num_arms):
+            if self.counts[arm] == 0:
+                self.current_best_arm = arm
+                return self.current_best_arm
+
+        if self.kl_ucbs is None:
+            self.kl_ucbs = np.zeros(self.num_arms)
+            for arm in range(self.num_arms):
+                emp_mean = self.successes[arm] / self.counts[arm]
+                self.kl_ucbs[arm] = calc_kl_ucb(emp_mean, self.counts[arm], self.t)
+
+            self.current_best_arm = int(np.argmax(self.kl_ucbs))
+            self.next_best_arm = int(
+                np.argmax(
+                    self.kl_ucbs[~(np.arange(self.num_arms) == self.current_best_arm)]
+                )
+            )
+
+        # Re-calculate UCB indices for the next best arm
+        self.kl_ucbs[self.current_best_arm] = calc_kl_ucb(
+            self.successes[self.current_best_arm] / self.counts[self.current_best_arm],
+            self.counts[self.current_best_arm],
+            self.t,
+        )
+        self.kl_ucbs[self.next_best_arm] = calc_kl_ucb(
+            self.successes[self.next_best_arm] / self.counts[self.next_best_arm],
+            self.counts[self.next_best_arm],
+            self.t,
+        )
+
+        # Select the arm with the highest UCB index
+        best_arm = int(np.argmax(self.kl_ucbs))
+        self.current_best_arm = best_arm
+
+        # Reset the batch multiplier
+        if self.current_best_arm != self.next_best_arm:
+            self.batch_size = 1.0
+            self.pulls_remaining_in_batch = 0
+            self.next_best_arm = int(
+                np.argmax(
+                    self.kl_ucbs[~(np.arange(self.num_arms) == self.current_best_arm)]
+                )
+            )
+
+        batch_size = int(np.ceil(self.batch_size))
+
+        self.pulls_remaining_in_batch = batch_size - 1
+        self.batch_size *= self.batch_growth_factor
+
+        return self.current_best_arm
 
     def get_reward(self, arm_index, reward):
         # START EDITING HERE
-        pass
+        self.counts[arm_index] += 1
+        self.successes[arm_index] += reward
         # END EDITING HERE

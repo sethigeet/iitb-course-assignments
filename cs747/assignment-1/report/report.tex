@@ -1,0 +1,232 @@
+\documentclass{article}
+\usepackage[a4paper, total={6in, 10in}]{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\title{Programming Assignment 1}
+\author{Geet Sethi (23B2258)}
+
+\begin{document}
+
+\maketitle
+
+\section{Task 1}
+
+\subsection{Upper Confidence Bound (UCB) Algorithm}
+\begin{itemize}
+  \item Keep track of the number of times each arm is pulled, the empirical means and the total number of pulls.
+  \item To choose an arm to pull:
+    \begin{itemize}
+      \item First $K$ rounds: pull each arm once
+      \item Then select the arm with highest UCB value
+    \end{itemize}
+  \item Finally, update the mean of the arm that was pulled according to the reward received: $\hat{\mu}_{t+1} = \frac{n-1}{n}\hat{\mu}_t + \frac{1}{n}r_t$
+\end{itemize}
+
+\begin{figure}[ht]
+  \begin{center}
+    \includegraphics[width=0.75\textwidth]{graphs/task1-UCB.png}
+  \end{center}
+  \caption{Regret vs Horizon for UCB}
+\end{figure}
+
+\subsection{KL-UCB Algorithm}
+\begin{itemize}
+  \item Keep track of the number of times each arm is pulled, the empirical means and the total number of pulls.
+  \item To choose an arm to pull:
+    \begin{itemize}
+      \item First $K$ rounds: pull each arm once
+      \item Use binary search with initial bounds as $[\hat{\mu}_{t}, 1]$ to find the KL-UCB using the formula: $\text{KL-UCB}_i(t) = \max\{q : \text{KL}(\hat{\mu}_i, q) \leq \frac{\ln t + c\ln\ln t}{n_i}\}$. We continue to shrink the bounds until either the difference between the bounds becomes less than $\epsilon$ (which we choose) or until max iterations have been completed.
+      \item Then select the arm with highest KL-UCB value
+    \end{itemize}
+  \item Finally, update the mean of the arm that was pulled according to the reward received: $\hat{\mu}_{t+1} = \frac{n-1}{n}\hat{\mu}_t + \frac{1}{n}r_t$
+\end{itemize}
+
+\subsubsection{Helper Functions}
+\begin{itemize}
+  \item \textbf{KL Divergence Calculation}: The \texttt{kl\_div(p, q)} function computes the KL divergence between two Bernoulli distributions with numerical stability
+  \item \textbf{KL-UCB Upper Bound Calculation}: The \texttt{calc\_kl\_ucb()} function uses binary search to find the upper confidence bound
+\end{itemize}
+
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[width=0.75\textwidth]{graphs/task1-KL_UCB.png}
+  \end{center}
+  \caption{Regret vs Horizon for KL-UCB}
+\end{figure}
+
+
+\subsection{Thompson Sampling Algorithm}
+\begin{itemize}
+  \item Keep track of the number of times each arm is pulled and the number of times the pull resulted in a success for each arm.
+  \item To choose an arm to pull:
+    \begin{itemize}
+      \item First $K$ rounds: pull each arm once
+      \item Sample a value from the beta distribution with parameters $1 + s_t$ and $1 + f_t = 1 + u_t - s_t$ for each arm
+      \item Then select the arm with highest sampled value from the above step
+    \end{itemize}
+  \item Finally, update the number of the successes of the arm that was pulled according to the reward received: $s_{t+1} = s_t + r_t$
+\end{itemize}
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[width=0.75\textwidth]{graphs/task1-Thompson_Sampling.png}
+  \end{center}
+  \caption{Regret vs Horizon for Thompson Sampling}
+\end{figure}
+
+\section{Task 2}
+The problem is a variant of the multi-armed bandit problem but with an important distinction that we want to minimize the regret as much as possible in a small time horizon itself.
+
+The core idea is to minimize expected time-to-termination. To achieve this we should prioritize doors that have the highest probability of breaking in the shortest time. This requires balancing two competing factors:
+
+\begin{enumerate}
+    \item \textbf{High damage rate}: Doors with higher $\mu_i$ deal more damage on average
+    \item \textbf{Low remaining health}: Doors closer to breaking require less additional damage
+\end{enumerate}
+
+\subsection{Algorithm}
+
+\begin{itemize}
+  \item Keep track of the number of times each door is hit and their empirical means.
+  \item To choose a door to pull:
+    \begin{itemize}
+      \item First $K$ rounds: pull each door once
+      \item Then select the door with lowest expected number of pulls required ($ = \arg\min_i \frac{\text{health}[i]}{\sqrt{\hat{\mu}_i}}$) before it breaks
+    \end{itemize}
+  \item Finally, update the mean and health of the door that was pulled according to the reward received: $\hat{\mu}_{t+1} = \frac{n-1}{n}\hat{\mu}_t + \frac{1}{n}r_t$
+\end{itemize}
+
+\subsection{Mathematical Foundation}
+
+It is pretty simple to understand why a simple average gives a decent estimate of the mean. The square root scaling $\sqrt{\mu}$ in the denominator accounts for the variance in Poisson distributions, as the standard deviation of $\text{Poisson}(\mu)$ is $\sqrt{\mu}$.
+
+Other approaches I tried (which didn't seem to give good results) are to follow the approach of Thompson Sampling but using a Gamma distribution to represent the belief distribution of the mean of each door instead of the beta distribution or use the KL-UCB like metric to get a \textit{score} of the door and choose a door according to min moves required ($health/score$).
+
+\subsection{Computational Efficiency}
+
+The algorithm has:
+\begin{itemize}
+    \item \textbf{Time Complexity}: $O(K)$ per step for selecting the door
+    \item \textbf{Space Complexity}: $O(K)$ for storing reward sums, hit counts and healths per door
+\end{itemize}
+
+This makes it suitable for the constraint of up to 30 doors.
+
+\section{Task 3}
+
+\subsection{Overview}
+
+The optimization leverages the observation that KL-UCB naturally exhibits long sequences of consecutive pulls of the same arm. Another thing to note is that this behaviour of KL-UCB becomes more pronounced as the algorithm converges to the optimal arm.
+
+The standard implementation has a computational complexity of $O(K \times I)$ per time step, where:
+\begin{itemize}
+    \item $K$ is the number of arms
+    \item $I$ is the number of binary search iterations
+\end{itemize}
+
+This results in a total complexity of $O(T \times K \times I)$ over $T$ time steps, making it computationally expensive for large horizons or many arms.
+
+\subsection{Optimization}
+
+The optimized algorithm implements a \textbf{batched approach}.
+
+\begin{itemize}
+  \item We start with calculating the KL-UCB values for each arm and pull the arm with the highest value
+  \item In the next timestep, we re-calculate the KL-UCB values for that arm and the one which was right behind it in the last iteration. If the arm that was pulled last time is no longer the arm with the highest value, we restart from the 1st step. But if it is, now we pull it for 1.5 times = 1 time.
+  \item We continue doing the above and the batch size keeps increasing by a factor of 1.5 until the arm's KL-UCB value drops from the top spot.
+\end{itemize}
+
+This adaptive strategy ensures:
+\begin{itemize}
+    \item Early exploration uses small batches (1-2 pulls) to maintain exploration capability
+    \item Later exploitation uses larger batches (4, 6, 9, 13...) to maximize computational savings
+\end{itemize}
+
+The above aligns with how KL-UCB tends to behave as the algorithm starts to converge!
+
+Another important point to note is that instead of recalculating the KL-UCB values for all arms after the completion of the batch, we only compute the KL-UCB values for the top 2 arms from the last calculation. This reduces the computational cost from $O(K \times I)$ to $O(2 \times I)$ per decision step.
+
+\subsection{Algorithm Pseudocode}
+
+\begin{algorithm}
+\caption{Optimized KL-UCB Algorithm}
+\begin{algorithmic}[1]
+\STATE Initialize: $\text{counts} \leftarrow \mathbf{0}$, $\text{successes} \leftarrow \mathbf{0}$, $\text{batch\_size} \leftarrow 1.0$
+\FOR{$t = 1$ to $T$}
+    \IF{$\text{pulls\_remaining\_in\_batch} > 0$}
+        \STATE $\text{pulls\_remaining\_in\_batch} \leftarrow \text{pulls\_remaining\_in\_batch} - 1$
+        \RETURN $\text{current\_best\_arm}$ \COMMENT{Batch execution: O(1)}
+    \ENDIF
+    
+    \IF{any arm has not been pulled}
+        \STATE Pull unexplored arm
+        \RETURN arm index
+    \ENDIF
+    
+    \IF{$\text{kl\_ucbs}$ is not initialized}
+        \STATE Compute UCB indices for all arms
+        \STATE $\text{current\_best\_arm} \leftarrow \arg\max_i \text{kl\_ucbs}[i]$
+    \ELSE
+        \STATE Recalculate UCB for $\text{current\_best\_arm}$ and second-best arm
+        \STATE $\text{current\_best\_arm} \leftarrow \arg\max_i \text{kl\_ucbs}[i]$
+    \ENDIF
+    
+    \STATE $\text{batch\_size} \leftarrow \text{batch\_size} \times 1.5$
+    \STATE $\text{pulls\_remaining\_in\_batch} \leftarrow \text{batch\_size} - 1$
+    \RETURN $\text{current\_best\_arm}$
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Performance Analysis}
+
+\subsubsection{Standard KL-UCB}
+\begin{itemize}
+    \item \textbf{Per step}: $O(K \times I)$ where $I \approx 25$ (binary search iterations)
+    \item \textbf{Total}: $O(T \times K \times I)$
+\end{itemize}
+
+\subsubsection{Optimized KL-UCB}
+\begin{itemize}
+    \item \textbf{Batched steps}: $O(1)$ (no UCB calculations)
+    \item \textbf{Decision steps}: $O(2 \times I)$ (only 2 arms recalculated)
+    \item \textbf{Total}: $O(T_{\text{batch}} \times 1 + T_{\text{decision}} \times 2 \times I)$
+\end{itemize}
+
+where $T_{\text{batch}} \gg T_{\text{decision}}$ in typical scenarios.
+
+\subsubsection{Regret Analysis}
+Similar to standard KL-UCB, this algorithm also follows all the GLIE rules and hence gives optimal regret and also closely follows the behaviour of standard KL-UCB like pulling the same arm again and again.
+
+\begin{figure}[h]
+  \begin{center}
+    \includegraphics[width=0.75\textwidth]{graphs/task3_comparison.png}
+  \end{center}
+  \caption{Comparison between Standard and Optimized KL-UCB}
+\end{figure}
+
+\newpage
+
+\section{Bonus Task}
+
+One way to achieve exactly same trajectories is to employ a similar technique as the previously described algorithm but instead of just exponentially increasing the batch size, we calculate an optimal batch size in which we are sure that no other arm's KL-UCB value will not increase above the value of the arm that we have chosen.
+
+We can calculate the exact future time $t_j$ at which any other arm $j$'s KL-UCB value will become equal to the value of the currently chosen arm, $kl\_ucb_{max}$. We can do this by solving for $t_j$ in the following equation:
+
+$$N_j(t-1) \cdot d(\hat{\mu}_j(t-1), ucb_{max}) = \log(t_j) + c \log(\log(t_j))$$
+
+We can ignore the $\log(\log(t))$ term for this calculation so as to simplify the calculation and speed up the algorithm further.
+
+This $t_j$ is the \textbf{earliest possible time} that arm $j$ could become the leader. Before time $t_j$, we are \textbf{guaranteed} that $UCB_j(t') < ucb_{max}$ for all $t' < t_j$ and hence we can keep pulling that arm until $t_j$.
+
+\end{document}
