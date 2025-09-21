@@ -1,0 +1,176 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\title{\textbf{Continuous \& Discrete Denoising Diffusion Probabilistic Models (D3PM \& DDPM) for MNIST Generation}}
+\author{Avdhoot Golekar (23B0060), Geet Sethi (23B2258), Panav Shah (23B3323)}
+
+\begin{document}
+
+\maketitle
+
+\section{Discrete Denoising Diffusion Probabilistic Model (D3PM)}
+\subsection{Model Architecture}
+
+\subsubsection{UNet Backbone}
+The core architecture is based on a U-Net with residual blocks and time embeddings:
+
+\begin{itemize}
+    \item \textbf{Input/Output}: Single channel $28\times28$ images with 10 discrete classes (0-8 for pixel values, 9 for absorbing state)
+    \item \textbf{Time Embedding}: Sinusoidal position embeddings of dimension 128
+    \item \textbf{Downsampling Path}: Three residual blocks ($64\rightarrow128\rightarrow256$ channels) with $2\times2$ max pooling
+    \item \textbf{Bottleneck}: $256\rightarrow512$ channel residual block
+    \item \textbf{Upsampling Path}: Three residual blocks with skip connections and transposed convolutions
+    \item \textbf{Output Layer}: $1\times1$ convolution producing 10-channel logits
+\end{itemize}
+
+\subsubsection{Residual Block Design}
+Each residual block incorporates:
+\begin{itemize}
+    \item Two $3\times3$ convolutions with group normalization
+    \item Time embedding injection via learned linear transformation
+    \item ReLU activation and dropout (0.1)
+    \item Skip connection with $1\times1$ convolution for dimension matching
+\end{itemize}
+
+\subsubsection{Conditional Architecture}
+The conditional variant extends the UNet with:
+\begin{itemize}
+    \item Class embedding layer: 10 classes $\rightarrow$ 128 dimensions
+    \item Class embedding addition to time embeddings
+    \item Forward pass includes class labels as additional conditioning
+\end{itemize}
+
+\subsection{Training Procedure}
+
+\subsubsection{Data Preprocessing}
+MNIST images are preprocessed as follows:
+\begin{enumerate}
+    \item Normalize to $[0, 1]$ range using \texttt{transforms.ToTensor()}
+    \item Discretize to 9 discrete values: $x_{discrete} = \text{round}(x \times 8)$
+    \item Values 0-8 represent pixel intensities, 9 is the absorbing state
+\end{enumerate}
+
+\subsubsection{Loss Function}
+The model uses cross-entropy loss between predicted and true discrete pixel values:
+\begin{equation}
+\mathcal{L} = \text{CrossEntropy}(\text{logits}_{flat}, \text{targets}_{flat})
+\end{equation}
+
+\subsubsection{Noise Scheduling}
+
+We use the following noise scheduling methods to choose the mask probabilities for each of the input tokens:
+
+\subsubsection{Linear Schedule}
+\begin{equation}
+\text{mask\_prob}(t) = \frac{t}{T-1}
+\end{equation}
+where $T$ is the total number of timesteps.
+
+\subsubsection{Cosine Schedule}
+\begin{equation}
+\alpha_t = \cos\left(\frac{\pi}{2} \cdot \frac{t + s}{T + s}\right)^2
+\end{equation}
+where $s = 0.008$ for numerical stability.
+
+\subsubsection{Training Algorithm}
+
+\begin{algorithm}[H]
+\caption{D3PM Training Loop}
+\begin{algorithmic}[1]
+\STATE Initialize model $\theta$, optimizer, scheduler
+\FOR{epoch = 1 to max\_epochs}
+    \FOR{batch in dataloader}
+        \STATE Sample timesteps $t \sim \text{Uniform}(0, T)$
+        \STATE Add noise: $x_t = \text{scheduler.add\_noise}(x_0, t, \text{num\_classes})$
+        \STATE Forward pass: $\hat{x}_0 = \text{model}(x_t, t, \text{class\_label})$
+        \STATE Compute loss: $\mathcal{L} = \text{CrossEntropy}(\hat{x}_0, x_0)$
+        \STATE Backward pass and update $\theta$
+    \ENDFOR
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Sampling Procedure}
+
+\begin{algorithm}[H]
+\caption{D3PM Sampling}
+\begin{algorithmic}[1]
+\STATE Initialize $x_T$ with absorbing states (value 9)
+\FOR{$t = T-1$ down to 0}
+    \STATE Get logits: $\text{logits} = \text{model}(x_t, t, \text{class\_label})$
+    \STATE Convert to probabilities: $p = \text{softmax}(\text{logits})$
+    \STATE Sample: $x_{t-1} \sim \text{Categorical}(p)$
+\ENDFOR
+\STATE Convert to continuous: $x_{final} = x_0 / 8$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Experimental Setup}
+
+\subsubsection{Hyperparameters}
+All experiments use the following base configuration:
+\begin{itemize}
+    \item \textbf{Epochs}: 300
+    \item \textbf{Batch Size}: 64
+    \item \textbf{Learning Rate}: 0.0001
+    \item \textbf{Optimizer}: Adam
+    \item \textbf{Evaluation Samples}: 1000
+    \item \textbf{FID Batches}: 5 (64 samples each)
+\end{itemize}
+
+\subsubsection{Experimental Variables}
+We vary the following parameters:
+\begin{itemize}
+    \item \textbf{Diffusion Steps}: 100, 500, 1000
+    \item \textbf{Scheduler Type}: Linear, Cosine
+    \item \textbf{Model Type}: Unconditional D3PM, Conditional D3PM
+\end{itemize}
+
+\subsection{Results and Analysis}
+
+\subsubsection{FID Score Results}
+Table \ref{tab:results} presents the FID scores for all experimental configurations:
+
+\begin{table}[H]
+\centering
+\caption{FID Scores Across All Experimental Configurations}
+\label{tab:results}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Model Type} & \textbf{Scheduler} & \textbf{Steps} & \textbf{FID Score} \\
+\midrule
+\multirow{3}{*}{D3PM (Unconditional)} & Cosine & 1000 & 198.02 \\
+& Cosine & 500 & 183.44 \\
+& Cosine & 100 & 195.70 \\
+& Linear & 1000 & 180.53 \\
+\midrule
+\multirow{3}{*}{D3PM (Conditional)} & Cosine & 1000 & 133.13 \\
+& Cosine & 500 & 149.55 \\
+& Cosine & 100 & 175.50 \\
+& Linear & 1000 & 226.67 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Key Observations}
+
+\begin{itemize}
+    \item Conditional models consistently outperform unconditional models across all configurations
+    \item Cosine scheduler is generally superior for both model types but more prominently seen in conditional models
+    \item More diffusion steps generally improve quality for both model types however the improvement is not as significant as the number of steps increases
+\end{itemize}
+
+\end{document}
