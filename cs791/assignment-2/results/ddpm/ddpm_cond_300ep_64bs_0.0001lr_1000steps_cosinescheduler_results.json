@@ -1,0 +1,11 @@
+{
+  "model_type": "ddpm_cond",
+  "model_path": "exps_conditional_ddpm/300ep_64bs_0.0001lr_1000steps_cosinescheduler/model_epoch_300.pth",
+  "parameters": {
+    "num_samples": 1000,
+    "num_steps": 1000,
+    "num_fid_batches": 5,
+    "num_samples_per_fid": 64
+  },
+  "fid_score": 54.2604118347168
+}

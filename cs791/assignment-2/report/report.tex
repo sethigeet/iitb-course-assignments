@@ -22,6 +22,7 @@
 \maketitle
 
 \section{Discrete Denoising Diffusion Probabilistic Model (D3PM)}
+
 \subsection{Model Architecture}
 
 \subsubsection{UNet Backbone}
@@ -142,12 +143,12 @@ We vary the following parameters:
 \subsection{Results and Analysis}
 
 \subsubsection{FID Score Results}
-Table \ref{tab:results} presents the FID scores for all experimental configurations:
+Table \ref{tab:results-d3pm} presents the FID scores for all experimental configurations:
 
 \begin{table}[H]
 \centering
 \caption{FID Scores Across All Experimental Configurations}
-\label{tab:results}
+\label{tab:results-d3pm}
 \begin{tabular}{@{}lccc@{}}
 \toprule
 \textbf{Model Type} & \textbf{Scheduler} & \textbf{Steps} & \textbf{FID Score} \\
@@ -169,6 +170,178 @@ Table \ref{tab:results} presents the FID scores for all experimental configurati
 
 \begin{itemize}
     \item Conditional models consistently outperform unconditional models across all configurations
+    \item Cosine scheduler is generally superior for both model types but more prominently seen in conditional models
+    \item More diffusion steps generally improve quality for both model types however the improvement is not as significant as the number of steps increases
+\end{itemize}
+
+% ------------------------------------------------------------------------
+
+\section{Continuous Denoising Diffusion Probabilistic Model (DDPM)}
+
+\subsection{Model Architecture}
+
+\subsubsection{UNet Backbone}
+We use the same UNet backbone as the D3PM model described in the previous section.
+
+\subsection{Training Procedure}
+
+\subsubsection{Data Preprocessing}
+MNIST images are preprocessed as follows:
+\begin{enumerate}
+    \item Normalize to [0, 1] range using \texttt{transforms.ToTensor()}
+    \item Scale to model range [-1, 1]: $x_{model} = 2x - 1$
+    \item Maintain continuous values throughout training
+\end{enumerate}
+
+\subsubsection{Loss Function}
+The model uses Mean Squared Error (MSE) loss between predicted and actual noise:
+\begin{equation}
+\mathcal{L} = \text{MSE}(\epsilon_{\theta}(x_t, t), \epsilon)
+\end{equation}
+where $\epsilon$ is the actual noise added and $\epsilon_{\theta}(x_t, t)$ is the model's prediction.
+
+\subsubsection{Noise Scheduling}
+
+We use the following noise scheduling methods to add noise to the input images during training as well as sampling:
+
+\subsubsection{Linear Schedule}
+\begin{align}
+\beta_t &= \beta_1 + \frac{t}{T-1}(\beta_T - \beta_1) \\
+\alpha_t &= 1 - \beta_t \\
+\bar{\alpha}_t &= \prod_{s=1}^t \alpha_s
+\end{align}
+where $\beta_1 = 10^{-4}$ and $\beta_T = 2 \times 10^{-2}$.
+
+\subsubsection{Cosine Schedule}
+\begin{align}
+\bar{\alpha}_t &= \frac{f(t)}{f(0)} \\
+f(t) &= \cos\left(\frac{\pi}{2} \cdot \frac{t + s}{T + s}\right)^2
+\end{align}
+where $s = 0.008$ for numerical stability.
+
+\subsubsection{Forward Diffusion Process}
+The forward process gradually adds Gaussian noise:
+\begin{equation}
+q(x_t | x_{t-1}) = \mathcal{N}(x_t; \sqrt{1-\beta_t}x_{t-1}, \beta_t \mathbf{I})
+\end{equation}
+
+The reparameterization trick allows sampling $x_t$ directly from $x_0$:
+\begin{equation}
+x_t = \sqrt{\bar{\alpha}_t}x_0 + \sqrt{1-\bar{\alpha}_t}\epsilon
+\end{equation}
+
+\subsubsection{Training Algorithm}
+\begin{algorithm}[H]
+\caption{DDPM Training Loop}
+\begin{algorithmic}[1]
+\STATE Initialize model $\theta$, optimizer, scheduler
+\FOR{epoch = 1 to max\_epochs}
+    \FOR{batch in dataloader}
+        \STATE Scale data to $[-1, 1]$ range: $x_0 = 2x - 1$
+        \STATE Sample timesteps $t \sim \text{Uniform}(0, T)$
+        \STATE Sample noise: $\epsilon \sim \mathcal{N}(0, \mathbf{I})$
+        \STATE Add noise: $x_t = \sqrt{\bar{\alpha}_t}x_0 + \sqrt{1-\bar{\alpha}_t}\epsilon$
+        \STATE Forward pass: $\hat{\epsilon} = \text{model}(x_t, t)$
+        \STATE Compute loss: $\mathcal{L} = \text{MSE}(\hat{\epsilon}, \epsilon)$
+        \STATE Backward pass and update $\theta$
+    \ENDFOR
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Sampling Procedure}
+
+\subsubsection{Reverse Diffusion Process}
+Sampling follows the reverse process using the learned model:
+
+\begin{algorithm}[H]
+\caption{DDPM Sampling}
+\begin{algorithmic}[1]
+\STATE Initialize $x_T \sim \mathcal{N}(0, \mathbf{I})$
+\FOR{$t = T-1$ down to 0}
+    \STATE Predict noise: $\hat{\epsilon} = \text{model}(x_t, t)$
+    \STATE Compute predicted mean: $\mu_\theta(x_t, t) = \frac{1}{\sqrt{\alpha_t}}\left(x_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\hat{\epsilon}\right)$
+    \STATE Sample next $x$: $x_{t-1} \sim \mathcal{N}(\mu_\theta(x_t, t), \sigma_t^2 \mathbf{I})$
+\ENDFOR
+\STATE Scale back to image range ($[0, 1]$): $x_0 = \text{clamp}(\frac{x_0 + 1}{2}, 0, 1)$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Conditional Sampling}
+For conditional generation, class labels are provided at each timestep:
+\begin{equation}
+\hat{\epsilon} = \text{model}(x_t, t, \text{class\_label})
+\end{equation}
+
+\subsubsection{Reverse Process Variance}
+The reverse process variance is computed as:
+\begin{equation}
+\sigma_t^2 = \frac{1-\bar{\alpha}_{t-1}}{1-\bar{\alpha}_t}\beta_t
+\end{equation}
+
+\subsection{Experimental Setup}
+
+\subsubsection{Hyperparameters}
+All experiments use the following base configuration:
+\begin{itemize}
+    \item \textbf{Epochs}: 300
+    \item \textbf{Batch Size}: 64
+    \item \textbf{Learning Rate}: 0.0001
+    \item \textbf{Optimizer}: Adam
+    \item \textbf{Evaluation Samples}: 1000
+    \item \textbf{FID Batches}: 5 (64 samples each)
+\end{itemize}
+
+\subsubsection{Experimental Variables}
+We vary the following parameters:
+\begin{itemize}
+    \item \textbf{Diffusion Steps}: 100, 500, 1000
+    \item \textbf{Scheduler Type}: Linear, Cosine
+    \item \textbf{Model Type}: Unconditional DDPM, Conditional DDPM
+\end{itemize}
+
+\subsection{Implementation Details}
+
+\subsubsection{Noise Scheduler Implementation}
+The \texttt{NoiseSchedulerDDPM} class handles the following:
+\begin{itemize}
+    \item Precomputation of $\alpha_t$, $\bar{\alpha}_t$, $\beta_t$
+    \item Forward process: $x_t = \sqrt{\bar{\alpha}_t}x_0 + \sqrt{1-\bar{\alpha}_t}\epsilon$
+    \item Reverse process: $x_{t-1} = \mu_\theta(x_t, t) + \sigma_t z$
+\end{itemize}
+
+\subsubsection{Model Architecture Details}
+Same as the D3PM model described in the previous section.
+
+\subsection{Results and Analysis}
+
+\subsubsection{FID Score Results}
+Table \ref{tab:results-ddpm} presents the FID scores for all experimental configurations:
+
+\begin{table}[H]
+\centering
+\caption{FID Scores Across All Experimental Configurations}
+\label{tab:results-ddpm}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Model Type} & \textbf{Scheduler} & \textbf{Steps} & \textbf{FID Score} \\
+\midrule
+\multirow{3}{*}{DDPM (Unconditional)} & Cosine & 1000 & 52.39 \\
+& Cosine & 500 & 52.86 \\
+& Cosine & 100 & 53.07 \\
+& Linear & 1000 & 139.99 \\
+\midrule
+\multirow{3}{*}{DDPM (Conditional)} & Cosine & 1000 & 54.26 \\
+& Cosine & 500 & 55.01 \\
+& Cosine & 100 & 55.24 \\
+& Linear & 1000 & 155.29 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Key Observations}
+
+\begin{itemize}
     \item Cosine scheduler is generally superior for both model types but more prominently seen in conditional models
     \item More diffusion steps generally improve quality for both model types however the improvement is not as significant as the number of steps increases
 \end{itemize}
