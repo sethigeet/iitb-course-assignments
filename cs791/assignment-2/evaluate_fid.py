@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 import time
 from typing import Dict
@@ -12,7 +13,9 @@ from tqdm import tqdm
 
 from d3pm import sample as sample_d3pm
 from d3pm_cond import sample as sample_d3pm_cond
-from models import D3PM, ConditionalD3PM
+from ddpm import sample as sample_ddpm
+from ddpm_cond import sample as sample_ddpm_cond
+from models import D3PM, DDPM, ConditionalD3PM, ConditionalDDPM
 from utils import compute_fid, seed_everything
 
 
@@ -120,11 +123,19 @@ def evaluate_model(
     """
     print(f"\nEvaluating model: {model_path}")
 
-    # Load model
-    if "d3pm_cond" in model_path:
+    # Load model based on path
+    if "conditional_d3pm" in model_path:
         model = ConditionalD3PM(num_classes=10)
-    else:
+        model_type = "d3pm_cond"
+    elif "d3pm" in model_path:
         model = D3PM()
+        model_type = "d3pm"
+    elif "conditional_ddpm" in model_path:
+        model = ConditionalDDPM(num_classes=10)
+        model_type = "ddpm_cond"
+    else:
+        model = DDPM()
+        model_type = "ddpm"
 
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
@@ -137,10 +148,23 @@ def evaluate_model(
 
     # Generate samples
     print("Generating samples...")
-    if "d3pm_cond" in model_path:
-        fake_images = sample_d3pm_cond(model, device, num_samples, num_steps)
+    if model_type in ("d3pm_cond", "ddpm_cond"):
+        # Generate roughly balanced classes
+        per_class = math.ceil(num_samples / 10)
+        samples_list = []
+        for cls in range(10):
+            if model_type == "d3pm_cond":
+                cls_samples = sample_d3pm_cond(model, cls, device, per_class, num_steps)
+            else:
+                cls_samples = sample_ddpm_cond(model, cls, device, per_class, num_steps)
+            samples_list.append(cls_samples)
+        fake_images = torch.cat(samples_list, dim=0)
+        fake_images = fake_images[torch.randperm(fake_images.shape[0])[:num_samples]]
     else:
-        fake_images = sample_d3pm(model, device, num_samples, num_steps)
+        if model_type == "d3pm":
+            fake_images = sample_d3pm(model, device, num_samples, num_steps)
+        else:
+            fake_images = sample_ddpm(model, device, num_samples, num_steps)
 
     # Compute FID
     print("Computing FID score...")
@@ -149,7 +173,7 @@ def evaluate_model(
     )
 
     results = {
-        "model_type": "d3pm_cond" if "d3pm_cond" in model_path else "d3pm",
+        "model_type": model_type,
         "model_path": model_path,
         "parameters": {
             "num_samples": num_samples,

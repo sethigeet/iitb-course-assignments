@@ -53,7 +53,7 @@ class ResidualBlock(nn.Module):
 
 class UNet(nn.Module):
     def __init__(
-        self, in_channels=1, out_channels=10, time_emb_dim=128, num_classes=10
+        self, in_channels=1, out_channels=10, time_emb_dim=128, num_classes=None
     ):
         super().__init__()
         self.time_emb_dim = time_emb_dim
@@ -129,7 +129,10 @@ class D3PM(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         self.unet = UNet(
-            in_channels=1, out_channels=num_classes, time_emb_dim=time_emb_dim
+            in_channels=1,
+            out_channels=num_classes,
+            time_emb_dim=time_emb_dim,
+            num_classes=num_classes,
         )
 
     def forward(self, x, timestep):
@@ -167,13 +170,43 @@ class ConditionalD3PM(nn.Module):
 
 
 class DDPM(nn.Module):
-    def __init__(self):  # Add any required parameters
+    def __init__(self, time_emb_dim=128):
         super().__init__()
-        # Define your model architecture here
+        # Unconditional DDPM predicts Gaussian noise (epsilon) with 1 output channel
+        self.unet = UNet(
+            in_channels=1, out_channels=1, time_emb_dim=time_emb_dim, num_classes=None
+        )
+
+    def forward(self, x, timestep):
+        """
+        Args:
+            x: float tensor in [0, 1], shape (batch_size, 1, 28, 28)
+            timestep: LongTensor shape (batch_size,)
+        Returns:
+            epsilon prediction: shape (batch_size, 1, 28, 28)
+        """
+        return self.unet(x, timestep)
 
 
 class ConditionalDDPM(nn.Module):
-    def __init__(self, num_classes):  # Add any required parameters
+    def __init__(self, num_classes, time_emb_dim=128):
         super().__init__()
         self.num_classes = num_classes
-        # Define your conditional model architecture here
+        # Conditional DDPM predicts epsilon with class-conditioning via embeddings
+        self.unet = UNet(
+            in_channels=1,
+            out_channels=1,
+            time_emb_dim=time_emb_dim,
+            num_classes=num_classes,
+        )
+
+    def forward(self, x, timestep, class_labels):
+        """
+        Args:
+            x: float tensor in [0, 1], shape (batch_size, 1, 28, 28)
+            timestep: LongTensor shape (batch_size,)
+            class_labels: LongTensor shape (batch_size,)
+        Returns:
+            epsilon prediction: shape (batch_size, 1, 28, 28)
+        """
+        return self.unet(x, timestep, class_labels)
