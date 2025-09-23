@@ -5,6 +5,8 @@
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{float}
@@ -173,6 +175,68 @@ Table \ref{tab:results-d3pm} presents the FID scores for all experimental config
     \item Cosine scheduler is generally superior for both model types but more prominently seen in conditional models
     \item More diffusion steps generally improve quality for both model types however the improvement is not as significant as the number of steps increases
 \end{itemize}
+
+\subsubsection{Sample Visualizations}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_300ep_64bs_0.0001lr_100steps_cosinescheduler_model.pth.png}
+        \caption{T=100}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_300ep_64bs_0.0001lr_500steps_cosinescheduler_model.pth.png}
+        \caption{T=500}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_300ep_64bs_0.0001lr_1000steps_cosinescheduler_model.pth.png}
+        \caption{T=1000}
+    \end{subfigure}
+    \caption{Final outputs of the unconditional D3PM with cosine schedule for different diffusion steps}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.5\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_300ep_64bs_0.0001lr_1000steps_linearscheduler_model.pth.png}
+        \caption{Linear schedule}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.5\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_300ep_64bs_0.0001lr_1000steps_cosinescheduler_model.pth.png}
+        \caption{Cosine schedule}
+    \end{subfigure}
+    \caption{Final outputs of the unconditional D3PM with different schedules for 1000 steps}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_cond_300ep_64bs_0.0001lr_100steps_cosinescheduler_model.pth.png}
+        \caption{T=100}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_cond_300ep_64bs_0.0001lr_500steps_cosinescheduler_model.pth.png}
+        \caption{T=500}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_cond_300ep_64bs_0.0001lr_1000steps_cosinescheduler_model.pth.png}
+        \caption{T=1000}
+    \end{subfigure}
+    \caption{Final outputs of the conditional D3PM with cosine schedule for different diffusion steps.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.5\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_cond_300ep_64bs_0.0001lr_1000steps_linearscheduler_model.pth.png}
+        \caption{Linear schedule}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.5\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_d3pm_cond_300ep_64bs_0.0001lr_1000steps_cosinescheduler_model.pth.png}
+        \caption{Cosine schedule}
+    \end{subfigure}
+    \caption{Final outputs of the conditional D3PM with different schedules for 1000 steps}
+\end{figure}
 
 % ------------------------------------------------------------------------
 
@@ -344,6 +408,78 @@ Table \ref{tab:results-ddpm} presents the FID scores for all experimental config
 \begin{itemize}
     \item Cosine scheduler is generally superior for both model types but more prominently seen in conditional models
     \item More diffusion steps generally improve quality for both model types however the improvement is not as significant as the number of steps increases
+\end{itemize}
+
+\subsubsection{Sample Visualizations}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_300ep_64bs_0.0001lr_100steps_cosinescheduler_model.pth.png}
+        \caption{T=100}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_300ep_64bs_0.0001lr_500steps_cosinescheduler_model.pth.png}
+        \caption{T=500}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_300ep_64bs_0.0001lr_1000steps_cosinescheduler_model.pth.png}
+        \caption{T=1000}
+    \end{subfigure}
+    \caption{Final outputs of the unconditional DDPM with cosine schedule for different diffusion steps}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.5\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_300ep_64bs_0.0001lr_1000steps_linearscheduler_model.pth.png}
+        \caption{Linear schedule}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.5\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_300ep_64bs_0.0001lr_1000steps_cosinescheduler_model.pth.png}
+        \caption{Cosine schedule}
+    \end{subfigure}
+    \caption{Final outputs of the unconditional DDPM with different schedules for 1000 steps}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_cond_300ep_64bs_0.0001lr_100steps_cosinescheduler_model.pth.png}
+        \caption{T=100}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_cond_300ep_64bs_0.0001lr_500steps_cosinescheduler_model.pth.png}
+        \caption{T=500}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.32\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_cond_300ep_64bs_0.0001lr_1000steps_cosinescheduler_model.pth.png}
+        \caption{T=1000}
+    \end{subfigure}
+    \caption{Final outputs of the conditional DDPM with cosine schedule for different diffusion steps.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.5\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_cond_300ep_64bs_0.0001lr_1000steps_linearscheduler_model.pth.png}
+        \caption{Linear schedule}
+    \end{subfigure}\hfill
+    \begin{subfigure}{0.5\textwidth}
+        \includegraphics[width=\textwidth]{samples/samples_ddpm_cond_300ep_64bs_0.0001lr_1000steps_cosinescheduler_model.pth.png}
+        \caption{Cosine schedule}
+    \end{subfigure}
+    \caption{Final outputs of the conditional DDPM with different schedules for 1000 steps}
+\end{figure}
+
+\section{References}
+
+\begin{itemize}
+    \item \href{https://huggingface.co/papers/2006.11239}{Denoising Diffusion Probabilistic Models - Hugging Face}
+    \item \href{https://github.com/lucidrains/denoising-diffusion-pytorch}{Denoising Diffusion PyTorch - GitHub}
+    \item \href{https://medium.com/@sjasmeet135/denoising-diffusion-model-implementation-from-scratch-b0a1fc6ef5d8}{Denoising Diffusion Model Implementation from Scratch - Medium}
+    \item \href{https://github.com/Abdennacer-Badaoui/D3PMs}{D3PMs - GitHub}
+    \item ChatGPT \& Google Gemini
 \end{itemize}
 
 \end{document}
