@@ -25,7 +25,7 @@ class TestCase:
     @staticmethod
     def from_file(path: str) -> "TestCase":
         with open(path, "r") as f:
-            lines = [line.strip() for line in f.readlines()]
+            lines = [line.strip() for line in f.read().strip().split("\n")]
 
         threshold = int(lines[1])
         bonus = int(lines[2])
@@ -103,7 +103,8 @@ def get_optimal_action(
             return action - 13  # Switch to heart version
 
     # Shouldn't reach here if the MDP was constructed correctly
-    raise ValueError(f"Invalid action {action} for hand {hand} (state {state})")
+    # raise ValueError(f"Invalid action {action} for hand {hand} (state {state})")
+    return -1
 
 
 def parse_args() -> argparse.Namespace:

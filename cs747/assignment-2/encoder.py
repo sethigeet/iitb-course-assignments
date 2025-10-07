@@ -50,9 +50,7 @@ def encode_mdp(game_config: GameConfig):
 
     transitions = []
     for state_idx, state in enumerate(states):
-        total_deck_cards = 26
-        cards_in_hand = sum(state)
-        num_remaining = total_deck_cards - cards_in_hand
+        num_remaining = 26 - sum(state)
 
         # No cards left => can only stop
         if num_remaining == 0:
@@ -66,6 +64,7 @@ def encode_mdp(game_config: GameConfig):
             # Add
             if action == 0:
                 # Try adding each possible card number
+                prob_of_exceeding_threshold = 0.0
                 for num in range(1, 14):
                     available = 2 - state[num - 1]
                     if available == 0:
@@ -77,15 +76,23 @@ def encode_mdp(game_config: GameConfig):
                     new_state = list(state)
                     new_state[num - 1] += 1
                     new_state = tuple(new_state)
-                    reward = 0.0
 
                     if hand_sum(new_state) >= game_config.threshold:
-                        next_state_idx = terminal_state_idx
-                    else:
-                        next_state_idx = state_to_idx[new_state]
+                        prob_of_exceeding_threshold += prob
+                        continue
 
+                    next_state_idx = state_to_idx[new_state]
+                    transitions.append((state_idx, action, next_state_idx, 0.0, prob))
+
+                if prob_of_exceeding_threshold > 0.0:
                     transitions.append(
-                        (state_idx, action, next_state_idx, reward, prob)
+                        (
+                            state_idx,
+                            action,
+                            terminal_state_idx,
+                            0.0,
+                            prob_of_exceeding_threshold,
+                        )
                     )
 
             # Stop
@@ -102,13 +109,14 @@ def encode_mdp(game_config: GameConfig):
                     swap_num = action - 13
 
                 # Check if we have this number in hand
-                if state[swap_num - 1] == 0:
+                if state[swap_num - 1] == 0:  # Invalid action
                     transitions.append(
                         (state_idx, action, terminal_state_idx, 0.0, 1.0)
                     )
                     continue
 
                 # Try drawing each possible card number
+                prob_of_exceeding_threshold = 0.0
                 for draw_num in range(1, 14):
                     available = 2 - state[draw_num - 1]
                     if available == 0:
@@ -121,15 +129,23 @@ def encode_mdp(game_config: GameConfig):
                     new_state[swap_num - 1] -= 1
                     new_state[draw_num - 1] += 1
                     new_state = tuple(new_state)
-                    reward = 0.0
 
                     if hand_sum(new_state) >= game_config.threshold:
-                        next_state_idx = terminal_state_idx
-                    else:
-                        next_state_idx = state_to_idx[new_state]
+                        prob_of_exceeding_threshold += prob
+                        continue
 
+                    next_state_idx = state_to_idx[new_state]
+                    transitions.append((state_idx, action, next_state_idx, 0.0, prob))
+
+                if prob_of_exceeding_threshold > 0.0:
                     transitions.append(
-                        (state_idx, action, next_state_idx, reward, prob)
+                        (
+                            state_idx,
+                            action,
+                            terminal_state_idx,
+                            0.0,
+                            prob_of_exceeding_threshold,
+                        )
                     )
 
     # Print all transitions
