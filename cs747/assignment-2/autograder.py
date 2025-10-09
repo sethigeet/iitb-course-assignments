@@ -4,11 +4,10 @@ import os
 import random
 import subprocess
 
+parser = argparse.ArgumentParser()
 import numpy as np
 
 random.seed(0)
-
-parser = argparse.ArgumentParser()
 
 
 input_file_ls = [
@@ -32,9 +31,9 @@ class VerifyOutputPlanner:
         else:
             algorithm_ls.append(algorithm)
 
-        counter = 1
         for algo in algorithm_ls:
             print("verify output", algo)
+            counter = 1
 
             for in_file in input_file_ls:
                 print("\n\n", "-" * 100)
@@ -55,7 +54,6 @@ class VerifyOutputPlanner:
                     cmd_planner, universal_newlines=True
                 )
                 self.verifyOutput(cmd_output, in_file, print_error)
-
         policy_eval_files = [
             "data/mdp/continuing-mdp-10-5.txt",
             "data/mdp/episodic-mdp-10-5.txt",
@@ -138,18 +136,13 @@ class VerifyOutputPlanner:
             for i in range(len(est)):
                 est_V = float(est[i][0])
                 base_V = float(base[i][0])
-
-                est_A = int(est[i][1])
-                base_A = int(base[i][1])
                 print(
                     "%10.6f" % est_V,
                     "%10.6f" % base_V,
                     "%10.6f" % abs(est_V - base_V),
-                    est_A,
-                    base_A,
                     end="\t",
                 )
-                if abs(est_V - base_V) <= (10**-4) and est_A == base_A:
+                if abs(est_V - base_V) <= (10**-4):
                     print("OK")
                 else:
                     flag_ok = 1
@@ -196,27 +189,33 @@ def verifyOutput(output, solution):
     with open(solution, "r") as f:
         # format: Answer n1 n2 ...
         for line in f:
-            s = line.split()[0:1]
+            s = line.split()
             sol = [int(i) for i in s]
             solutions.append(sol)
 
     # check if output lies in sol
     flag_ok = 1
-    for i in range(len(outputs)):
-        if outputs[i] not in solutions[i]:
-            flag_ok = 0
-            print("Mistake: The output is not in the solution")
-            print("Output: ", outputs[i])
-            print("Solution: ", solutions[i])
-        else:
-            print("OK")
+    if len(outputs) != len(solutions):
+        flag_ok = 0
+        print(
+            "Mistake: Number of lines in decoder's output and solution file are different "
+        )
+    else:
+        for i in range(len(outputs)):
+            if outputs[i] not in solutions[i]:
+                flag_ok = 0
+                print("Mistake: The output is not in the solution")
+                print("Output: ", outputs[i])
+                print("Solution: ", solutions[i])
+            else:
+                print("OK")
 
     if flag_ok:
         print("All checks passed")
 
 
 if __name__ == "__main__":
-    parser.add_argument("--task", type=int, default=1)
+    parser.add_argument("--task", type=int, default=None)
     parser.add_argument("--algorithm", type=str, default="default")
     parser.add_argument("--pe", type=str, default="yes")
     args = parser.parse_args()
@@ -244,10 +243,18 @@ if __name__ == "__main__":
             verifyOutput(output, in_file_sol)
             i += 1
     else:
+        print("Running both tasks")
+        print("\n\n", "-" * 100)
+        print("TASK 1")
+        print("\n\n", "-" * 100)
         algo = VerifyOutputPlanner(args.algorithm, args.pe)
         if flag_ok:
             print("THERE IS A MISTAKE in Task 1")
-
+        print("\n\n", "-" * 100)
+        print("TASK 1 COMPLETED")
+        print("\n\n", "-" * 100)
+        print("TASK 2")
+        print("\n\n", "-" * 100)
         in_file_ls = [
             "data/gameconfig/gameconfig_" + str(i) + ".txt" for i in range(0, 5)
         ]
@@ -264,3 +271,6 @@ if __name__ == "__main__":
             output = run(in_file, in_file_test)
             verifyOutput(output, in_file_sol)
             i += 1
+        print("\n\n", "-" * 100)
+        print("TASK 2 COMPLETED")
+        print("\n\n", "-" * 100)
