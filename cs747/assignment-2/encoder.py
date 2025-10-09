@@ -84,16 +84,23 @@ def encode_mdp(game_config: GameConfig):
                     next_state_idx = state_to_idx[new_state]
                     transitions.append((state_idx, action, next_state_idx, 0.0, prob))
 
-                if prob_of_exceeding_threshold > 0.0:
-                    transitions.append(
-                        (
-                            state_idx,
-                            action,
-                            terminal_state_idx,
-                            0.0,
-                            prob_of_exceeding_threshold,
+                # If no chance of exceeding threshold, set all other actions to terminal state
+                if prob_of_exceeding_threshold == 0.0:
+                    for other_action in range(1, num_actions):
+                        transitions.append(
+                            (state_idx, other_action, terminal_state_idx, 0.0, 1.0)
                         )
+                    break
+
+                transitions.append(
+                    (
+                        state_idx,
+                        action,
+                        terminal_state_idx,
+                        0.0,
+                        prob_of_exceeding_threshold,
                     )
+                )
 
             # Stop
             elif action == 27:

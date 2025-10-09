@@ -108,7 +108,7 @@ class Policy:
         return Policy(num_states, state_to_action)
 
 
-def solve_hpi(mdp: MDP, epsilon: float = 1e-12) -> Tuple[List[float], List[int]]:
+def solve_hpi(mdp: MDP, epsilon: float = 1e-6) -> Tuple[List[float], List[int]]:
     policy = [0 for _ in range(mdp.num_states)]
 
     while True:
