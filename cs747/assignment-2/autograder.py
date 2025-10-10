@@ -31,9 +31,9 @@ class VerifyOutputPlanner:
         else:
             algorithm_ls.append(algorithm)
 
+        counter = 1
         for algo in algorithm_ls:
             print("verify output", algo)
-            counter = 1
 
             for in_file in input_file_ls:
                 print("\n\n", "-" * 100)
@@ -136,13 +136,19 @@ class VerifyOutputPlanner:
             for i in range(len(est)):
                 est_V = float(est[i][0])
                 base_V = float(base[i][0])
+
+                est_A = int(est[i][1])
+                base_A = int(base[i][1])
+
                 print(
                     "%10.6f" % est_V,
                     "%10.6f" % base_V,
                     "%10.6f" % abs(est_V - base_V),
+                    est_A,
+                    base_A,
                     end="\t",
                 )
-                if abs(est_V - base_V) <= (10**-4):
+                if abs(est_V - base_V) <= (10**-4) and est_A == base_A:
                     print("OK")
                 else:
                     flag_ok = 1
