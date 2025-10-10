@@ -179,26 +179,23 @@ def solve_lp(mdp: MDP) -> Tuple[List[float], List[int]]:
     return values, policy
 
 
-def evaluate_policy(
-    mdp: MDP, policy: List[int]
-) -> np.ndarray[Tuple[int], np.dtype[np.float64]]:
-    A = np.zeros((mdp.num_states, mdp.num_states), dtype=np.float64)
+def evaluate_policy(mdp: MDP, policy: List[int]) -> np.ndarray:
+    A = np.identity(mdp.num_states, dtype=np.float64)
     b = np.zeros(mdp.num_states, dtype=np.float64)
-    for state in range(mdp.num_states):
-        A[state, state] = 1.0
 
-        if state in mdp.terminal_states:
-            b[state] = 0.0
-            continue
+    # Mask for selecting just the terminal and non-terminal states
+    term_mask = np.zeros(mdp.num_states, dtype=bool)
+    term_mask[mdp.terminal_states] = True
+    nonterm_mask = ~term_mask
 
-        for next_state in range(mdp.num_states):
-            A[state, next_state] += (
-                -mdp.gamma * mdp.transitions[state, policy[state], next_state]
-            )
-            b[state] += (
-                mdp.transitions[state, policy[state], next_state]
-                * mdp.rewards[state, policy[state], next_state]
-            )
+    # Index transitions and rewards for the policy
+    T_pi = mdp.transitions[np.arange(mdp.num_states), policy, :]
+    R_pi = mdp.rewards[np.arange(mdp.num_states), policy, :]
+
+    # A[nonterm] = I - gamma * T_pi
+    A[nonterm_mask, :] -= mdp.gamma * T_pi[nonterm_mask, :]
+    # b[nonterm] = sum_s' T_pi * R_pi
+    b[nonterm_mask] = np.sum(T_pi[nonterm_mask, :] * R_pi[nonterm_mask, :], axis=1)
 
     return np.linalg.solve(A, b)
 
