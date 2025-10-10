@@ -1,0 +1,120 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, urlcolor=blue, linkcolor=blue}
+
+\title{CS747 Assignment 2}
+\author{Geet Sethi (23B2258)}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Task 1: MDP Solver (\texttt{planner.py})}
+\subsection{Problem Representation}
+We parse standard MDP files with:
+\begin{itemize}[left=1.25em]
+  \item \textbf{States} indexed as $\{0,\dots, S-1\}$,
+  \item \textbf{Actions} indexed as $\{0,\dots, A-1\}$,
+  \item \textbf{Terminal set} given by an \texttt{end} line (can be empty),
+  \item \textbf{Transitions} lines: \texttt{transition s a s' r t},
+  \item \textbf{Type} \texttt{mdptype} which can be either \texttt{continuous} or \texttt{episodic} 
+  \item \textbf{Discount} $\gamma$ which is a float between 0 and 1
+\end{itemize}
+Rewards and transitions are stored as dense $S\times A\times S$ arrays for simplicity.
+
+\subsection{Action-Value Computation}
+For any value function $V$, we compute
+\[
+Q(s,a) \;=\; \sum_{s'} P(s' \mid s,a)\;\Bigl(R(s,a,s') + \gamma V(s')\Bigr).
+\]
+This is used in both policy improvement and in extracting a greedy policy from the LP solution.
+
+\subsection{Policy Evaluation}
+Given a deterministic policy $\pi$, we solve the linear system
+\[
+V^\pi(s) = \sum_{s'} T(s, \pi(s), s') \bigl( R(s, \pi(s), s') + \gamma V^\pi(s') \bigr) \forall s
+\]
+with absorbing terminal states clamped to $V(s)=0$.
+\begin{align*}
+A_s &\leftarrow I - \gamma T(s, \pi(s), :) \\
+b_s &\leftarrow \sum_{s'} T(s, \pi(s), s') \times R(s, \pi(s), s') \\
+V_\pi &\leftarrow A^{-1} b
+\end{align*}
+where $A_s$ is the $s$th row of $A$ and $b_s$ is the $s$th element of $b$.
+
+\subsection{Howard's Policy Iteration (HPI)}
+We implement standard policy iteration:
+\begin{enumerate}[left=1.25em]
+  \item Initialize $\pi$ arbitrarily (all zeros).
+  \item \textbf{Policy evaluation}: solve $V_\pi$ exactly as above.
+  \item \textbf{Policy improvement}: for each non-terminal $s$,
+    $\pi(s) \leftarrow \arg\max_a Q(s,a)$.
+  \item Repeat until no improvement exceeds a small $\varepsilon$ (used for numerical tie-breaking).
+\end{enumerate}
+Note that we set the policy to 0 (fixed) for terminal states.
+
+\subsection{Linear Programming (LP) Formulation}
+We minimize $\sum_s V(s)$ subject to Bellman optimality inequalities:
+\[
+V(s) \;\ge\; \sum_{s'} T(s, a, s') \Bigl(R(s, a, s') + \gamma V(s')\Bigr)
+\quad\forall s,a,
+\]
+and enforce $V(s)=0$ for terminal $s$. The optimal $\{V(s)\}$ are then used to extract a greedy policy via $\arg\max_a Q(s,a)$.
+
+We use CBC via PuLP and check for optimal termination.
+
+\subsection{Observations}
+\begin{itemize}[left=1.25em]
+  \item \textbf{HPI vs LP}: HPI is typically faster for small to medium problems while LP is robust and convenient for correctness checks especially since HPI will not be able to tell us if the MDP is solvable or not whereas LP will.
+  \item \textbf{Policy evaluation}: The policy evaluation can be significantly sped up by using efficient matrix operations in numpy instead of loops.
+\end{itemize}
+
+% ============================================================================
+
+\section{Task 2: Game Encoding (\texttt{encoder.py})}
+\subsection{Game and MDP Design}
+\paragraph{Game:} We are given a deck of 13 hearts and 13 diamonds (i.e. $2$ copies of each rank $1$-$13$) and a \textit{threshold} $\Theta$ which defines the bust condition that if the hand sum reaches or exceeds $\Theta$, the episode ends with zero reward.
+
+\paragraph{Actions:}
+\begin{enumerate}[left=1.25em]
+  \item \textbf{Add} (action $0$): draw a random card uniformly from the remaining deck.
+  \item \textbf{Swap} (actions $1$-$13$): give one card of a chosen rank from hand, then draw uniformly from the deck.
+  \item \textbf{Stop} (action $14$): terminate; receive current hand sum plus a possible bonus.
+\end{enumerate}
+
+Note that we merge the duplicate swap actions for the same rank into a single action since our MDP is symmetric and we can output the appropriate actions based on the hand in the \texttt{decoder.py}.
+
+\paragraph{States:} Tuples $x \in \{0,1,2\}^{13}$, where $x_i$ is the count of rank $i$ in hand and a single absorbing terminal state together make up the state space. We enumerate all reachable states from the empty hand up to the deck constraint and $\Theta$.
+
+\paragraph{Rewards:}
+\begin{itemize}[left=1.25em]
+  \item \textbf{Stop}: $R = \sum_i i\cdot x_i + \text{bonus}(x)$.
+  \item \textbf{Bust (Add/Swap)}: transition to terminal state with $R=0$.
+  \item \textbf{Non-terminal Add/Swap}: transition to next state with $R=0$.
+\end{itemize}
+
+\paragraph{Bonus:} If the hand contains at least one card from each of a configured rank triple $(a,b,c)$, we add a fixed bonus $B$ on \textit{Stop}.
+
+\paragraph{Termination and discount:} We output \texttt{mdptype episodic} and $\gamma=1.0$ always since episodes terminate on \texttt{Stop}, bust, or deck exhaustion.
+
+\subsection{Transition Model}
+\paragraph{Deck accounting:} Let $N(x)=26-\sum_i x_i$ be remaining cards.
+\begin{itemize}[left=1.25em]
+  \item If no cards remain, \textbf{Stop} is the only action and we go to terminal with $R=\sum_i i\cdot x_i + \text{bonus}(x)$.
+  \item For \textbf{Add}, the probability of drawing rank $j$ is $\frac{2-x_j}{N(x)}$ if $2-x_j>0$. The next state is $x+e_j$ if it does not bust (otherwise we jump to terminal with the corresponding probability).
+  \item For \textbf{Swap(k)}, the probability of drawing rank $j$ is $\frac{2-x_j}{N(x)}$ if $2-x_j>0$ and $x_k>0$. The next state is $x-e_k+e_j$ if it does not bust (otherwise we jump to terminal with the corresponding probability). Also if $2-x_j=0$, we go to terminal with probability 1 and reward 0.
+\end{itemize}
+
+\paragraph{Safe-Add shaping:} If $\Pr(\text{bust} \mid \text{action} = \text{Add})=0$, then the encoder sends all non-Add actions (including \texttt{Stop}) directly to terminal with $R=0$. This enforces \textit{''always Add while safe''}.
+
+\subsection{Strategies and Insights from the Generated Actions:}
+\begin{itemize}[left=1.25em]
+  \item \textbf{Always-Add regime}: Due to the safe-Add shaping, the optimal policy necessarily adds while there is zero bust probability. This shortens effective horizons and reduces branching until approaching the threshold.
+  \item \textbf{Conservatism near threshold}: The model sends any bust probability mass to terminal with $R=0$, so near-threshold states often prefer \texttt{Stop} unless the expected gain from Add/Swap outweighs the bust risk and/or helps secure the bonus.
+\end{itemize}
+
+\end{document}
