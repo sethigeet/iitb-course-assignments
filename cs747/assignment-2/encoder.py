@@ -38,7 +38,7 @@ def encode_mdp(game_config: GameConfig):
     # Create state index mapping
     state_to_idx = {state: idx for idx, state in enumerate(states)}
     num_states = len(states)
-    num_actions = 28  # 0-27
+    num_actions = 15  # 0-14
 
     terminal_state_idx = num_states
     num_states += 1
@@ -54,13 +54,13 @@ def encode_mdp(game_config: GameConfig):
 
         # No cards left => can only stop
         if num_remaining == 0:
-            action = 27
+            action = 14
             reward = hand_sum(state) + game_config.get_bonus(state)
             transitions.append((state_idx, action, terminal_state_idx, reward, 1.0))
             continue
 
         # Generate transitions for all actions
-        for action in range(28):
+        for action in range(num_actions):
             # Add
             if action == 0:
                 # Try adding each possible card number
@@ -84,36 +84,25 @@ def encode_mdp(game_config: GameConfig):
                     next_state_idx = state_to_idx[new_state]
                     transitions.append((state_idx, action, next_state_idx, 0.0, prob))
 
-                # If no chance of exceeding threshold, set all other actions to terminal state
-                if prob_of_exceeding_threshold == 0.0:
-                    for other_action in range(1, num_actions):
-                        transitions.append(
-                            (state_idx, other_action, terminal_state_idx, 0.0, 1.0)
+                if prob_of_exceeding_threshold > 0.0:
+                    transitions.append(
+                        (
+                            state_idx,
+                            action,
+                            terminal_state_idx,
+                            0.0,
+                            prob_of_exceeding_threshold,
                         )
-                    break
-
-                transitions.append(
-                    (
-                        state_idx,
-                        action,
-                        terminal_state_idx,
-                        0.0,
-                        prob_of_exceeding_threshold,
                     )
-                )
 
             # Stop
-            elif action == 27:
+            elif action == 14:
                 reward = hand_sum(state) + game_config.get_bonus(state)
                 transitions.append((state_idx, action, terminal_state_idx, reward, 1.0))
 
-            # Swap (actions 1-26)
+            # Swap (actions 1-13)
             else:
-                # Determine which number to swap
-                if 1 <= action <= 13:
-                    swap_num = action
-                else:  # 14 <= action <= 26
-                    swap_num = action - 13
+                swap_num = action
 
                 # Check if we have this number in hand
                 if state[swap_num - 1] == 0:  # Invalid action

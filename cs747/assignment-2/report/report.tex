@@ -109,11 +109,9 @@ Note that we merge the duplicate swap actions for the same rank into a single ac
   \item For \textbf{Swap(k)}, the probability of drawing rank $j$ is $\frac{2-x_j}{N(x)}$ if $2-x_j>0$ and $x_k>0$. The next state is $x-e_k+e_j$ if it does not bust (otherwise we jump to terminal with the corresponding probability). Also if $2-x_j=0$, we go to terminal with probability 1 and reward 0.
 \end{itemize}
 
-\paragraph{Safe-Add shaping:} If $\Pr(\text{bust} \mid \text{action} = \text{Add})=0$, then the encoder sends all non-Add actions (including \texttt{Stop}) directly to terminal with $R=0$. This enforces \textit{''always Add while safe''}.
-
 \subsection{Strategies and Insights from the Generated Actions:}
 \begin{itemize}[left=1.25em]
-  \item \textbf{Always-Add regime}: Due to the safe-Add shaping, the optimal policy necessarily adds while there is zero bust probability. This shortens effective horizons and reduces branching until approaching the threshold.
+  \item \textbf{Always Add when Safe}: The optimal policy seems to add while there is zero bust probability. This shortens effective horizons and helps reach the threshold quicker.
   \item \textbf{Conservatism near threshold}: The model sends any bust probability mass to terminal with $R=0$, so near-threshold states often prefer \texttt{Stop} unless the expected gain from Add/Swap outweighs the bust risk and/or helps secure the bonus.
 \end{itemize}
 

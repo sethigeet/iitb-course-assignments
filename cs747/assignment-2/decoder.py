@@ -74,37 +74,19 @@ def get_optimal_action(
     state_idx = state_to_idx[state]
     action = policy[state_idx]
 
-    # Since the MDP model was constructed only on the basis of the number of cards in the hand and not the suits,
-    # we need to check if the action is valid for the specific hand and modify the suit appropriately.
-
-    if action == 0 or action == 27:
-        return action
-
-    if 1 <= action <= 13:
-        swap_num = action
-        suit_indicator = "H"
-    else:  # 14 <= action <= 26
-        swap_num = action - 13
-        suit_indicator = "D"
+    if action == 0:
+        return 0
+    elif action == 14:
+        return 27
 
     # Check if we have this specific card
-    target_card = f"{swap_num}{suit_indicator}"
-    if target_card in hand:
+    heart_card, diamond_card = f"{action}H", f"{action}D"
+    if heart_card in hand:
         return action
-
-    # We don't have this specific suit, check if we have the other suit
-    other_suit = "D" if suit_indicator == "H" else "H"
-    other_card = f"{swap_num}{other_suit}"
-
-    if other_card in hand:
-        if suit_indicator == "H":
-            return action + 13  # Switch to diamond version
-        else:
-            return action - 13  # Switch to heart version
-
-    # Shouldn't reach here if the MDP was constructed correctly
-    # raise ValueError(f"Invalid action {action} for hand {hand} (state {state})")
-    return -1
+    elif diamond_card in hand:
+        return action + 13
+    else:
+        return -1
 
 
 def parse_args() -> argparse.Namespace:
