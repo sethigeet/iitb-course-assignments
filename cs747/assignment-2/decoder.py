@@ -25,7 +25,7 @@ class TestCase:
     @staticmethod
     def from_file(path: str) -> "TestCase":
         with open(path, "r") as f:
-            lines = [line.strip() for line in f.read().strip().split("\n")]
+            lines = [line.strip() for line in f.readlines()]
 
         threshold = int(lines[1])
         bonus = int(lines[2])
