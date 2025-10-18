@@ -2,7 +2,9 @@ import json
 import os
 import random
 import time
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 def set_seed(seed: int) -> None:
@@ -81,3 +83,33 @@ def now() -> str:
         A timestamp string like '20251009_2312'.
     """
     return time.strftime("%Y%m%d_%H%M", time.localtime())
+
+
+def load_model(
+    model_name: str, hf_token: str, device: str
+) -> Tuple[AutoTokenizer, AutoModelForCausalLM, int]:
+    """Load and initialize HuggingFace model and tokenizer for baseline decoding.
+
+    This function handles the complete model initialization pipeline including tokenizer
+    configuration, model loading, device placement, and special token identification.
+    Proper setup is critical for consistent baseline performance across all decoding methods.
+
+    Args:
+        model_name (str): HuggingFace model repository identifier
+            Examples: "meta-llama/Llama-2-7b-hf", "gpt2", "microsoft/DialoGPT-medium"
+        hf_token (str): HuggingFace authentication token for accessing gated models
+            Required for models like LLaMA, GPT-4, or other restricted access models
+        device (str): PyTorch device specification for model placement
+            Examples: "cuda:0", "cuda:1", "cpu", "mps" (for Apple Silicon)
+
+    Returns:
+        Tuple[AutoTokenizer, AutoModelForCausalLM, int]: Model components for generation:
+            - tokenizer (AutoTokenizer): Configured tokenizer with proper padding setup
+            - model (AutoModelForCausalLM): Model in evaluation mode, placed on specified device
+            - eos_id (int): End-of-sequence token ID for generation termination
+    """
+    tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
+    model = AutoModelForCausalLM.from_pretrained(model_name, token=hf_token)
+    model.eval()
+    model.to(device)  # type: ignore
+    return tokenizer, model, model.config.eos_token_id  # type: ignore

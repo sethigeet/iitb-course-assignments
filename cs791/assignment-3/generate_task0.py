@@ -7,36 +7,12 @@ Implemented Algorithms:
     3. Top-k Sampling: Restricted stochastic sampling from k most probable tokens
 """
 
-from typing import Tuple
-
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from utils import load_model as utils_load_model
 
-def load_model(
-    model_name: str, hf_token: str, device: str
-) -> Tuple[AutoTokenizer, AutoModelForCausalLM, int]:
-    """Load and initialize HuggingFace model and tokenizer for baseline decoding.
-
-    This function handles the complete model initialization pipeline including tokenizer
-    configuration, model loading, device placement, and special token identification.
-    Proper setup is critical for consistent baseline performance across all decoding methods.
-
-    Args:
-        model_name (str): HuggingFace model repository identifier
-            Examples: "meta-llama/Llama-2-7b-hf", "gpt2", "microsoft/DialoGPT-medium"
-        hf_token (str): HuggingFace authentication token for accessing gated models
-            Required for models like LLaMA, GPT-4, or other restricted access models
-        device (str): PyTorch device specification for model placement
-            Examples: "cuda:0", "cuda:1", "cpu", "mps" (for Apple Silicon)
-
-    Returns:
-        Tuple[AutoTokenizer, AutoModelForCausalLM, int]: Model components for generation:
-            - tokenizer (AutoTokenizer): Configured tokenizer with proper padding setup
-            - model (AutoModelForCausalLM): Model in evaluation mode, placed on specified device
-            - eos_id (int): End-of-sequence token ID for generation termination
-    """
-    raise NotImplementedError("Students must implement this function.")
+# Re-export load_model from utils
+load_model = utils_load_model
 
 
 @torch.no_grad()
@@ -53,15 +29,37 @@ def greedy_decode(tokenizer, model, prefix: str, max_new: int, eos_id: int) -> s
     Returns:
         str: Generated text continuation (excluding input prefix)
     """
+    output = ""
+    input_ids = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
 
-    raise NotImplementedError("Students must implement this function.")
+    for _ in range(max_new):
+        outputs = model(input_ids)
+        logits = outputs.logits[0, -1, :]
+
+        # Select the token with highest probability (greedy)
+        next_token_id = torch.argmax(logits).item()
+
+        # Stop if EOS token is reached
+        if next_token_id == eos_id:
+            break
+
+        # Decode the generated token
+        next_token = tokenizer.decode([next_token_id], skip_special_tokens=True)
+        output += next_token
+
+        # Update input_ids for next iteration
+        input_ids = torch.cat(
+            [input_ids, torch.tensor([[next_token_id]]).to(model.device)], dim=1
+        )
+
+    return output
 
 
 @torch.no_grad()
 def temperature_decode(
     tokenizer, model, prefix: str, max_new: int, eos_id: int, tau: float
 ) -> str:
-    """Perform temperature sampling for controllable stochastic text generation.
+    """Perform temperature sampling for stochastic text generation.
 
     Args:
         tokenizer (AutoTokenizer): HuggingFace tokenizer for encoding/decoding
@@ -69,12 +67,39 @@ def temperature_decode(
         prefix (str): Input text prompt to continue
         max_new (int): Maximum number of new tokens to generate
         eos_id (int): End-of-sequence token ID for early termination
-        tau (float): Temperature parameter controlling randomness (must be > 0)
+        tau (float): Temperature parameter for scaling logits (must be > 0)
 
     Returns:
         str: Generated text continuation (excluding input prefix)
     """
-    raise NotImplementedError("Students must implement this function.")
+    output = ""
+    input_ids = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+
+    for _ in range(max_new):
+        outputs = model(input_ids)
+        logits = outputs.logits[0, -1, :]
+
+        # Scale logits by temperature and convert to probabilities
+        scaled_logits = logits / tau
+        probs = torch.softmax(scaled_logits, dim=-1)
+
+        # Sample from the probability distribution
+        next_token_id = torch.multinomial(probs, 1).item()
+
+        # Stop if EOS token is reached
+        if next_token_id == eos_id:
+            break
+
+        # Decode the generated token
+        next_token = tokenizer.decode([next_token_id], skip_special_tokens=True)
+        output += next_token
+
+        # Update input_ids for next iteration
+        input_ids = torch.cat(
+            [input_ids, torch.tensor([[next_token_id]]).to(model.device)], dim=1
+        )
+
+    return output
 
 
 @torch.no_grad()
@@ -94,4 +119,32 @@ def topk_decode(
     Returns:
         str: Generated text continuation (excluding input prefix)
     """
-    raise NotImplementedError("Students must implement this function.")
+    output = ""
+    input_ids = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+
+    for _ in range(max_new):
+        outputs = model(input_ids)
+        logits = outputs.logits[0, -1, :]
+
+        # Get top-k logits and indices and convert to probabilities
+        top_k_logits, top_k_indices = torch.topk(logits, k)
+        probs = torch.softmax(top_k_logits, dim=-1)
+
+        # Sample from the top-k distribution
+        sampled_idx = torch.multinomial(probs, 1)
+        next_token_id = top_k_indices[sampled_idx[0]].item()
+
+        # Stop if EOS token is reached
+        if next_token_id == eos_id:
+            break
+
+        # Decode the generated token
+        next_token = tokenizer.decode([next_token_id], skip_special_tokens=True)
+        output += next_token
+
+        # Update input_ids for next iteration
+        input_ids = torch.cat(
+            [input_ids, torch.tensor([[next_token_id]]).to(model.device)], dim=1
+        )
+
+    return output
