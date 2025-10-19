@@ -1,3 +1,5 @@
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -5,7 +7,12 @@ from utils import load_jsonl
 
 
 def main():
-    data = load_jsonl("data/outputs_task1_IS.jsonl")
+    if len(sys.argv) != 2:
+        print("Usage: python plot_histogram.py <data-file>")
+        sys.exit(1)
+
+    data_file = sys.argv[1]
+    data = load_jsonl(data_file)
 
     normalized_weights = [
         (block["prompt_id"], block["continuations"][0]["normalized_weights"])
@@ -36,7 +43,9 @@ def main():
         axes[idx].axis("off")
 
     fig.tight_layout()
-    plt.savefig("data/outputs_task1_IS_histogram.png")
+
+    output_file = data_file.replace(".jsonl", ".png").replace("outputs_", "histogram_")
+    plt.savefig(output_file)
 
 
 if __name__ == "__main__":

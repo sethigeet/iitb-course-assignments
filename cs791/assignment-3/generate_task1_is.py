@@ -1,7 +1,5 @@
 """Sequential Importance Sampling (Algorithm 1) — generation utilities."""
 
-from __future__ import annotations
-
 import math
 from typing import Dict, List
 
