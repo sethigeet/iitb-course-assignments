@@ -36,7 +36,17 @@ class FastRewardCalculator:
             float:
                 Returns 0.0 if fewer than 3 tokens are provided.
         """
-        raise NotImplementedError("Students must implement this function.")
+        if len(tokens) < 3:
+            return 0.0
+
+        reward = 0.0
+        for i in range(len(tokens) - 2):
+            reward += self.token_lm.logp(tokens[i], tokens[i + 1], tokens[i + 2])
+
+        if normalize:
+            reward = reward / len(tokens)
+
+        return reward
 
 
 class _TokenLM:
@@ -48,11 +58,11 @@ class _TokenLM:
 
     @staticmethod
     def _key(t1: str, t2: str, t3: str) -> str:
-        return f"{t1},{t2},{t3}"
+        return f"Ġ{t1},Ġ{t2},Ġ{t3}"
 
     def logp(self, t1: str, t2: str, t3: str) -> float:
         """Return log P(t3 | t1, t2) with epsilon floor."""
         p = self._tri.get(self._key(t1, t2, t3), 0.0)
         if p <= 0.0:
-            p = self._eps
-        return math.log(p)
+            return self._eps
+        return -math.log(p)

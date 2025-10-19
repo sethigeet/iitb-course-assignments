@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Dict, List
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Import the fast trigram API
 from api import FastRewardCalculator
@@ -45,18 +45,26 @@ def reward_sum_pos_ids(
     Output:
         R_sum (float). If len(ids) < 3, return 0.0.
     """
-    raise NotImplementedError("Students must implement this function.")
+    if len(ids) < 3:
+        return 0.0
+
+    tokens = tokenizer.decode(ids, skip_special_tokens=True)
+    reward = reward_calc.calculate_reward_tokens(
+        tokens.strip().split(" "), normalize=True
+    )
+    return reward
 
 
 @torch.no_grad()
-def topk_decode_ids(
-    tokenizer: AutoTokenizer,
-    model: AutoModelForCausalLM,
+def batched_topk_decode_ids(
+    tokenizer,
+    model,
     prefix: str,
     max_new: int,
     k: int,
+    batch_size: int,
     eos_id: int,
-) -> List[int]:
+) -> List[List[int]]:
     """Sample one continuation with top-k proposal. Return continuation token ids (EOS excluded).
 
     Inputs:
@@ -69,12 +77,53 @@ def topk_decode_ids(
     Output:
         gen_ids: List[int] of sampled token ids for the continuation.
     """
-    raise NotImplementedError("Students must implement this function.")
+    input_ids = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+    input_tokens_size = input_ids.shape[1]
+    input_ids = input_ids.repeat(batch_size, 1)
+
+    completed_ids = torch.zeros(batch_size).to(model.device)
+
+    for _ in range(max_new):
+        outputs = model(input_ids)
+        logits = outputs.logits[:, -1, :]
+
+        # Get top-k logits and indices and convert to probabilities
+        top_k_logits, top_k_indices = torch.topk(logits, k, dim=-1)
+        probs = torch.softmax(top_k_logits, dim=-1)
+
+        # Sample from the top-k distribution
+        next_token_ids = []
+        for i in range(batch_size):
+            if completed_ids[i]:
+                next_token_ids.append(model.config.eos_token_id)
+                continue
+
+            sampled_idx = torch.multinomial(probs[i], 1)
+            next_token_id = top_k_indices[i, sampled_idx]
+            next_token_ids.append(next_token_id)
+
+        next_token_ids = torch.tensor(next_token_ids).to(model.device)
+        input_ids = torch.cat(
+            [
+                input_ids,
+                next_token_ids.unsqueeze(-1),
+            ],
+            dim=-1,
+        )
+
+        # Stop if all sequences are completed
+        completed_ids = completed_ids.masked_fill(
+            next_token_ids == model.config.eos_token_id, 1
+        )
+        if completed_ids.all():
+            break
+
+    return input_ids[:, input_tokens_size:].tolist()
 
 
 def importance_sampling_for_prompt(
-    tokenizer: AutoTokenizer,
-    model: AutoModelForCausalLM,
+    tokenizer,
+    model,
     reward_calc: FastRewardCalculator,
     *,
     prefix: str,
@@ -104,4 +153,27 @@ def importance_sampling_for_prompt(
             "normalized_weights": [float, ...]   # length K
         }
     """
-    raise NotImplementedError("Students must implement this function.")
+
+    samples = []
+    weights = []
+    gen_ids = batched_topk_decode_ids(
+        tokenizer, model, prefix, max_new_tokens, k, K, eos_id
+    )
+    for i in range(K):
+        reward = reward_sum_pos_ids(reward_calc, tokenizer, gen_ids[i])
+        weight = math.exp(beta * reward)
+        samples.append(
+            {
+                "text": tokenizer.decode(gen_ids[i], skip_special_tokens=True),
+                "weight": weight,
+            }
+        )
+        weights.append(weight)
+
+    total_weights = sum(weights)
+    normalized_weights = list([w / total_weights for w in weights])
+
+    return {
+        "samples": samples,
+        "normalized_weights": normalized_weights,
+    }
