@@ -15,7 +15,7 @@ load_model = utils_load_model
 load_counts_and_reward = utils_load_counts_and_reward
 
 
-def reward_sum_pos_ids(
+def get_total_reward(
     reward_calc: FastRewardCalculator, tokenizer, ids: List[int]
 ) -> float:
     """Compute positive reward on token ids: R_sum over token trigrams.
@@ -31,10 +31,8 @@ def reward_sum_pos_ids(
     if len(ids) < 3:
         return 0.0
 
-    tokens = tokenizer.decode(ids, skip_special_tokens=True)
-    reward = reward_calc.calculate_reward_tokens(
-        tokens.strip().split(" "), normalize=True
-    )
+    tokens = tokenizer.convert_ids_to_tokens(ids, skip_special_tokens=True)
+    reward = reward_calc.calculate_reward_tokens(tokens, normalize=True)
     return reward
 
 
@@ -143,7 +141,7 @@ def importance_sampling_for_prompt(
         tokenizer, model, prefix, max_new_tokens, k, K, eos_id
     )
     for i in range(K):
-        reward = reward_sum_pos_ids(reward_calc, tokenizer, gen_ids[i])
+        reward = get_total_reward(reward_calc, tokenizer, gen_ids[i])
         weight = math.exp(beta * reward)
         samples.append(
             {

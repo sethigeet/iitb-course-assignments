@@ -14,7 +14,7 @@ load_model = utils_load_model
 load_counts_and_reward = utils_load_counts_and_reward
 
 
-def reward_sum_pos_ids(reward_calc: FastRewardCalculator, tokenizer, ids) -> float:
+def get_total_reward(reward_calc: FastRewardCalculator, tokenizer, ids) -> float:
     """
     Args:
         reward_calc: FastRewardCalculator (token_lm.logp available).
@@ -27,10 +27,8 @@ def reward_sum_pos_ids(reward_calc: FastRewardCalculator, tokenizer, ids) -> flo
     if len(ids) < 3:
         return 0.0
 
-    tokens = tokenizer.decode(ids, skip_special_tokens=True)
-    reward = reward_calc.calculate_reward_tokens(
-        tokens.strip().split(" "), normalize=True
-    )
+    tokens = tokenizer.convert_ids_to_tokens(ids, skip_special_tokens=True)
+    reward = reward_calc.calculate_reward_tokens(tokens, normalize=True)
     return reward
 
 
@@ -99,11 +97,11 @@ def smc_for_prompt(
             next_token_ids.append(next_token_id)
 
             pi_t = math.exp(
-                beta * reward_sum_pos_ids(reward_calc, tokenizer, input_ids[i])
+                beta * get_total_reward(reward_calc, tokenizer, input_ids[i])
             )
             pi_t_1 = math.exp(
                 beta
-                * reward_sum_pos_ids(
+                * get_total_reward(
                     reward_calc,
                     tokenizer,
                     torch.cat(

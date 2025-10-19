@@ -58,7 +58,7 @@ class _TokenLM:
 
     @staticmethod
     def _key(t1: str, t2: str, t3: str) -> str:
-        return f"Ġ{t1},Ġ{t2},Ġ{t3}"
+        return f"{t1},{t2},{t3}"
 
     def logp(self, t1: str, t2: str, t3: str) -> float:
         """Return log P(t3 | t1, t2) with epsilon floor."""
