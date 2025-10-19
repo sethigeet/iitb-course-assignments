@@ -36,7 +36,7 @@ def main():
         axes[idx].axis("off")
 
     fig.tight_layout()
-    plt.savefig("data/output_task1_IS_histogram.png")
+    plt.savefig("data/outputs_task1_IS_histogram.png")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@ from typing import Dict, Iterable, List, Tuple
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from api import FastRewardCalculator
+
 
 def set_seed(seed: int) -> None:
     """Set seeds for Python, NumPy, and PyTorch.
@@ -113,3 +115,19 @@ def load_model(
     model.eval()
     model.to(device)  # type: ignore
     return tokenizer, model, model.config.eos_token_id  # type: ignore
+
+
+def load_counts_and_reward(
+    counts_dir: str, epsilon: float = 1e-9
+) -> FastRewardCalculator:
+    """Initialize trigram-based reward calculator for Sequential Importance Sampling.
+
+    Args:
+        counts_dir: Directory path containing ngrams data with trigram_probs.pkl cache
+        epsilon: Smoothing parameter - minimum probability for unseen trigrams (prevents log(0))
+
+    Returns:
+        FastRewardCalculator: Configured calculator for computing R(x) rewards
+    """
+    cache_file = os.path.join(counts_dir, "trigram_probs.pkl")
+    return FastRewardCalculator(cache_file, epsilon=epsilon)

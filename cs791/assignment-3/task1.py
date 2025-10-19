@@ -64,7 +64,7 @@ def parse_args():
     p.add_argument(
         "--hf-token",
         type=str,
-        required=True,
+        required=False,
         help="Hugging Face token for model access",
     )
     p.add_argument(
@@ -78,7 +78,7 @@ def parse_args():
     p.add_argument(
         "--counts-dir",
         type=str,
-        required=True,
+        default="./tinystories_ngrams",
         help="Directory containing trigram probability data",
     )
     p.add_argument(

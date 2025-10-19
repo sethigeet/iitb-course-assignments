@@ -50,11 +50,16 @@ def parse_args():
     )
 
     # HF model
-    p.add_argument("--hf-token", type=str, required=True)
+    p.add_argument("--hf-token", type=str, required=False)
     p.add_argument("--device", type=str, default="cuda:0")
 
     # counts + reward
-    p.add_argument("--counts-dir", type=str, required=True)
+    p.add_argument(
+        "--counts-dir",
+        type=str,
+        default="./tinystories_ngrams",
+        help="Directory containing trigram probability data",
+    )
     p.add_argument("--epsilon", type=float, default=1e-9)
 
     # terminal reward and resampling

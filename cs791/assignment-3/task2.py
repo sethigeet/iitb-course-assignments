@@ -84,7 +84,7 @@ Examples:
     model_group.add_argument(
         "--hf-token",
         type=str,
-        required=True,
+        required=False,
         help="HuggingFace authentication token for model access",
     )
     model_group.add_argument(
@@ -96,7 +96,12 @@ Examples:
 
     # === REWARD FUNCTION CONFIGURATION ===
     reward_group = p.add_argument_group("Reward Function Parameters")
-    reward_group.add_argument("--counts-dir", type=str, required=True)
+    p.add_argument(
+        "--counts-dir",
+        type=str,
+        default="./tinystories_ngrams",
+        help="Directory containing trigram probability data",
+    )
     reward_group.add_argument(
         "--epsilon",
         type=float,

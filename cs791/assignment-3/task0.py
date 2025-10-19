@@ -57,7 +57,7 @@ def parse_args():
         method is selected. Invalid combinations are ignored (e.g., tau with greedy).
     """
     p = argparse.ArgumentParser(description="Task 0: Choose a single decoding method")
-    p.add_argument("--hf-token", type=str, required=True)
+    p.add_argument("--hf-token", type=str, required=False)
     p.add_argument("--device", type=str, default="cuda:0")
     p.add_argument("--test-file", type=str, default="data/test_prompts.jsonl")
     p.add_argument("--A", type=int, required=True, help="Number of prompts to process")

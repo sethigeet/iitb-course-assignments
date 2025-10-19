@@ -60,8 +60,8 @@ def parse_args():
     p.add_argument(
         "--counts-dir",
         type=str,
-        default="/home/daksh/AML/assignment_3/llama_test_output",
-        help="Path to llama_test_output/",
+        default="./tinystories_ngrams",
+        help="Directory containing trigram probability data",
     )
     p.add_argument(
         "--model",
@@ -69,7 +69,7 @@ def parse_args():
         required=True,
         help="HF model id for teacher-forcing (base p0).",
     )
-    p.add_argument("--hf-token", type=str, required=True)
+    p.add_argument("--hf-token", type=str, required=False)
     p.add_argument("--device", type=str, default="cuda:0")
     p.add_argument("--out", type=str, default="data/metrics.json")
     return p.parse_args()

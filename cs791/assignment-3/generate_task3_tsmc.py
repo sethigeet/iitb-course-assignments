@@ -2,32 +2,17 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, List
 
 import torch
 
 from api import FastRewardCalculator
+from utils import load_counts_and_reward as utils_load_counts_and_reward
 from utils import load_model as utils_load_model
 
-# Re-export load_model from utils
+# Re-export load_model and load_counts_and_reward from utils
 load_model = utils_load_model
-
-
-def load_counts_and_reward(
-    counts_dir: str, epsilon: float = 1e-9
-) -> FastRewardCalculator:
-    """Initialize trigram-based reward calculator for Sequential Importance Sampling.
-
-    Args:
-        counts_dir: Directory path containing ngrams data with trigram_probs.pkl cache
-        epsilon: Smoothing parameter - minimum probability for unseen trigrams (prevents log(0))
-
-    Returns:
-        FastRewardCalculator: Configured calculator for computing R(x) rewards
-    """
-    cache_file = os.path.join(counts_dir, "trigram_probs.pkl")
-    return FastRewardCalculator(cache_file, epsilon=epsilon)
+load_counts_and_reward = utils_load_counts_and_reward
 
 
 def cal_intermediate_target_dist(
