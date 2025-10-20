@@ -3,8 +3,6 @@
 import argparse
 import json
 import math
-import os
-import sys
 from collections import defaultdict
 from typing import Dict, List
 
@@ -12,7 +10,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from api import FastRewardCalculator
-from utils import ensure_dir, load_jsonl
+from utils import ensure_dir, load_counts_and_reward, load_jsonl
 
 
 def parse_args():
@@ -282,13 +280,7 @@ def main():
     ensure_dir("data")
 
     # Fast reward calculator using trigram probabilities
-    cache_file = os.path.join(args.counts_dir, "trigram_probs.pkl")
-    if not os.path.exists(cache_file):
-        print(f"Warning: trigram_probs.pkl not found at {cache_file}")
-        print("Please run: python precompute_trigram_probs.py first")
-        sys.exit(1)
-
-    reward_calc = FastRewardCalculator(cache_file)
+    reward_calc = load_counts_and_reward(args.counts_dir)
 
     # Base model for teacher-forcing
     tok, model = _load_model(args.model, args.hf_token, args.device)

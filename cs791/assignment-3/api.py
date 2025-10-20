@@ -2,18 +2,29 @@
 
 import math
 import pickle
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class FastRewardCalculator:
-    def __init__(self, cache_file: str, epsilon: float = 1e-9):
+    def __init__(
+        self,
+        trigram_probs_file: str,
+        expected_rewards_file: str,
+        epsilon: float = 1e-9,
+    ):
         """
-        cache_file: pickle with at least
-          - 'trigram_probs': Dict[str, float], key = "tok1,tok2,tok3", value = P(t3|t1,t2)
+        Args:
+            trigram_probs_file: pickle with at least
+              - 'trigram_probs': Dict[str, float], key = "tok1,tok2,tok3", value = P(t3|t1,t2)
+            bigram_probs_file: pickle with at least
+              - 'bigram_probs': Dict[str, float], key = "tok1,tok2", value = P(t2|t1)
+            expected_rewards_file: json with at least
+              - 'expected_rewards': Dict[str, float], key = "tok1,tok2", value = expected reward of (tok1,tok2)
         """
-        with open(cache_file, "rb") as f:
-            cache = pickle.load(f)
-        self._tri_probs: Dict[str, float] = cache["trigram_probs"]
+        with open(trigram_probs_file, "rb") as f:
+            self._tri_probs: Dict[str, float] = pickle.load(f)["trigram_probs"]
+        with open(expected_rewards_file, "rb") as f:
+            self._expected_rewards: Dict[str, float] = pickle.load(f)
         self._eps: float = float(epsilon)
 
         # Expose a token LM object with .logp expected by SMC/TSMC code.
@@ -47,6 +58,12 @@ class FastRewardCalculator:
             reward = reward / len(tokens)
 
         return reward
+
+    def get_expected_reward(self, token1: str, token2: Optional[str] = None) -> float:
+        if token2 is None:
+            return self._expected_rewards.get(token1, 0.0)
+        else:
+            return self._expected_rewards.get(f"{token1},{token2}", 0.0)
 
 
 class _TokenLM:

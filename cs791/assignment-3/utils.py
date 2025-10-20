@@ -129,5 +129,8 @@ def load_counts_and_reward(
     Returns:
         FastRewardCalculator: Configured calculator for computing R(x) rewards
     """
-    cache_file = os.path.join(counts_dir, "trigram_probs.pkl")
-    return FastRewardCalculator(cache_file, epsilon=epsilon)
+    trigram_probs_file = os.path.join(counts_dir, "trigram_probs.pkl")
+    expected_rewards_file = os.path.join(counts_dir, "expected_rewards.pkl")
+    return FastRewardCalculator(
+        trigram_probs_file, expected_rewards_file, epsilon=epsilon
+    )

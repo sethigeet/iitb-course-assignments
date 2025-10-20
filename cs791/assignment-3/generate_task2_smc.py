@@ -96,10 +96,10 @@ def smc_for_prompt(
             next_token_prob = top_k_logits[i, sampled_idx].item()
             next_token_ids.append(next_token_id)
 
-            pi_t = math.exp(
+            pi_t_1 = math.exp(
                 beta * get_total_reward(reward_calc, tokenizer, input_ids[i])
             )
-            pi_t_1 = math.exp(
+            pi_t = math.exp(
                 beta
                 * get_total_reward(
                     reward_calc,
