@@ -1,0 +1,114 @@
+{
+  "Greedy": {
+    "expected_reward": 2.792811400210587,
+    "mean_nll": 59.45882797241216,
+    "perplexity": 3.365058907290495,
+    "avg_length": 48.999999999999865,
+    "entropy": 5.106804335405011,
+    "num_samples": 160
+  },
+  "Temp-0.5": {
+    "expected_reward": 2.7350982319611026,
+    "mean_nll": 69.17086732387546,
+    "perplexity": 4.102720759685486,
+    "avg_length": 48.999999999999865,
+    "entropy": 5.6661247970172495,
+    "num_samples": 160
+  },
+  "Temp-0.9": {
+    "expected_reward": 2.5921792159779558,
+    "mean_nll": 93.00041635036467,
+    "perplexity": 6.672320367529234,
+    "avg_length": 48.999999999999865,
+    "entropy": 5.901010034729444,
+    "num_samples": 160
+  },
+  "TopK-10": {
+    "expected_reward": 2.734262276375668,
+    "mean_nll": 90.02915518283844,
+    "perplexity": 6.2797470286643895,
+    "avg_length": 48.999999999999865,
+    "entropy": 5.85088647242919,
+    "num_samples": 160
+  },
+  "TopK-5": {
+    "expected_reward": 2.7690104382449396,
+    "mean_nll": 81.77393522262577,
+    "perplexity": 5.306093201527636,
+    "avg_length": 48.999999999999865,
+    "entropy": 5.774167280260861,
+    "num_samples": 160
+  },
+  "IS[topk=10; beta=10.0]": {
+    "expected_reward": 3.7141282019027466,
+    "mean_nll": 99.59450461716229,
+    "perplexity": 7.633457671135927,
+    "avg_length": 48.99999999999541,
+    "entropy": 5.847612433539655,
+    "num_samples": 160
+  },
+  "IS[topk=10; beta=1.0]": {
+    "expected_reward": 2.899381940547503,
+    "mean_nll": 91.2568864408507,
+    "perplexity": 6.439408003862312,
+    "avg_length": 48.99865364579377,
+    "entropy": 5.847612433539655,
+    "num_samples": 160
+  },
+  "IS[topk=10; beta=5.0]": {
+    "expected_reward": 3.462203959218726,
+    "mean_nll": 97.37942520203373,
+    "perplexity": 7.296065505932316,
+    "avg_length": 48.99999943631208,
+    "entropy": 5.847612433539655,
+    "num_samples": 160
+  },
+  "SMC[topk=10; beta=10.0; N=8]": {
+    "expected_reward": 3.5688089297933554,
+    "mean_nll": 95.53142922346738,
+    "perplexity": 7.026024244778928,
+    "avg_length": 49.00000000000003,
+    "entropy": 5.285375996873662,
+    "num_samples": 160
+  },
+  "SMC[topk=10; beta=1.0; N=8]": {
+    "expected_reward": 2.9399389119189814,
+    "mean_nll": 95.70145763857309,
+    "perplexity": 7.050446669660119,
+    "avg_length": 48.99999999999992,
+    "entropy": 5.310071431185751,
+    "num_samples": 160
+  },
+  "SMC[topk=10; beta=5.0; N=8]": {
+    "expected_reward": 3.2025149037539826,
+    "mean_nll": 101.16838664009015,
+    "perplexity": 7.882624855071096,
+    "avg_length": 49.000000000000014,
+    "entropy": 5.245618057390046,
+    "num_samples": 160
+  },
+  "TSMC[topk=10; N=8; beta=10.0]": {
+    "expected_reward": 3.5203385999440466,
+    "mean_nll": 102.9871389577904,
+    "perplexity": 8.180705109273054,
+    "avg_length": 49.0,
+    "entropy": 4.813555011634345,
+    "num_samples": 160
+  },
+  "TSMC[topk=10; N=8; beta=1.0]": {
+    "expected_reward": 2.907887251835952,
+    "mean_nll": 98.24234029856812,
+    "perplexity": 7.425690822134649,
+    "avg_length": 48.99999999999994,
+    "entropy": 5.111506395303213,
+    "num_samples": 160
+  },
+  "TSMC[topk=10; N=8; beta=5.0]": {
+    "expected_reward": 3.6267749583967435,
+    "mean_nll": 118.60170608053663,
+    "perplexity": 11.250842123098504,
+    "avg_length": 49.000000000000064,
+    "entropy": 4.742249363184608,
+    "num_samples": 160
+  }
+}

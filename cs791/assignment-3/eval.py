@@ -64,7 +64,8 @@ def parse_args():
     p.add_argument(
         "--model",
         type=str,
-        required=True,
+        default="meta-llama/Meta-Llama-3-8B-Instruct",
+        required=False,
         help="HF model id for teacher-forcing (base p0).",
     )
     p.add_argument("--hf-token", type=str, required=False)

@@ -60,8 +60,8 @@ tinystories_ngrams/
 # Note: tinystories_ngrams.tar.gz is tracked via Git LFS
 
 # Output files
-data/outputs_*.jsonl
-data/metrics.json
+# data/outputs_*.jsonl
+# data/metrics.json
 
 # Temporary files
 *.tmp
