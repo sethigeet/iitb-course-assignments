@@ -40,18 +40,16 @@ def get_twisted_reward(reward_calc: FastRewardCalculator, tokenizer, ids) -> flo
         ids: current full context ids (prompt + generated).
 
     Returns:
-        float: Expected positive delta (float) ≥ 0. For t < 2, you may return 0.0.
+        float: Expected positive delta (float) ≥ 0.
     """
     if len(ids) < 1:
-        return 0.0
+        return 1.0
 
     tokens = tokenizer.convert_ids_to_tokens(ids, skip_special_tokens=True)
     if len(tokens) == 1:
         reward = reward_calc.get_expected_reward(tokens[0])
     else:
-        reward = reward_calc.get_expected_reward(
-            tokens[-2], tokens[-1]
-        ) + get_total_reward(reward_calc, tokenizer, ids)
+        reward = reward_calc.get_expected_reward(tokens[-2], tokens[-1])
 
     return reward
 
@@ -97,6 +95,7 @@ def tsmc_for_prompt(
     # Define here to have access to the weights variable outside the loop
     weights = []
     normalized_weights = torch.tensor([])
+    total_probabilities = torch.ones(N).to(model.device)
 
     for t in range(max_new_tokens):
         outputs = model(input_ids)
@@ -120,6 +119,7 @@ def tsmc_for_prompt(
             next_token_id = top_k_indices[i, sampled_idx].item()
             next_token_prob = top_k_logits[i, sampled_idx].item()
             next_token_ids.append(next_token_id)
+            total_probabilities[i] *= next_token_prob
 
             updated_input_ids = torch.cat(
                 [
@@ -132,7 +132,7 @@ def tsmc_for_prompt(
                     beta * get_twisted_reward(reward_calc, tokenizer, updated_input_ids)
                 )
             else:
-                pi_t = math.exp(
+                pi_t = total_probabilities[i] * math.exp(
                     beta * get_total_reward(reward_calc, tokenizer, updated_input_ids)
                 )
 
@@ -151,15 +151,14 @@ def tsmc_for_prompt(
             dim=-1,
         )
 
-        total_weights = sum(weights)
-        normalized_weights = torch.tensor(weights) / total_weights
+        normalized_weights = torch.tensor(weights) / sum(weights)
 
         # Resample
-        input_ids = input_ids[
-            torch.multinomial(normalized_weights, N, replacement=True).to(
-                input_ids.device
-            )
-        ]
+        resampled_indices = torch.multinomial(
+            normalized_weights, N, replacement=True
+        ).to(input_ids.device)
+        input_ids = input_ids[resampled_indices]
+        total_probabilities = total_probabilities[resampled_indices]
 
         # Stop if all sequences are completed
         completed_ids = completed_ids.masked_fill(next_token_ids == eos_id, 1)

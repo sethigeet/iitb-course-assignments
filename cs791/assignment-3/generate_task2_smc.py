@@ -93,23 +93,15 @@ def smc_for_prompt(
             sampled_idx = torch.multinomial(probs[i], 1)
 
             next_token_id = top_k_indices[i, sampled_idx].item()
-            next_token_prob = top_k_logits[i, sampled_idx].item()
             next_token_ids.append(next_token_id)
 
-            pi_t_1 = math.exp(
-                beta * get_total_reward(reward_calc, tokenizer, input_ids[i])
-            )
-            pi_t = math.exp(
+            weight = math.exp(
                 beta
-                * get_total_reward(
-                    reward_calc,
-                    tokenizer,
-                    torch.cat(
-                        [input_ids[i], torch.tensor([next_token_id]).to(model.device)]
-                    ),
+                * (
+                    get_total_reward(reward_calc, tokenizer, input_ids[i])
+                    - get_total_reward(reward_calc, tokenizer, input_ids[i, :-1])
                 )
             )
-            weight = pi_t / (pi_t_1 * next_token_prob)
             weights.append(weight)
 
         next_token_ids = torch.tensor(next_token_ids).to(model.device)
@@ -121,15 +113,13 @@ def smc_for_prompt(
             dim=-1,
         )
 
-        total_weights = sum(weights)
-        normalized_weights = torch.tensor(weights) / total_weights
+        normalized_weights = torch.tensor(weights) / sum(weights)
 
         # Resample
-        input_ids = input_ids[
-            torch.multinomial(normalized_weights, N, replacement=True).to(
-                input_ids.device
-            )
-        ]
+        resampled_indices = torch.multinomial(
+            normalized_weights, N, replacement=True
+        ).to(input_ids.device)
+        input_ids = input_ids[resampled_indices]
 
         # Stop if all sequences are completed
         completed_ids = completed_ids.masked_fill(next_token_ids == eos_id, 1)

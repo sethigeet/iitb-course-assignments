@@ -64,51 +64,51 @@
     "num_samples": 160
   },
   "SMC[topk=10; beta=10.0; N=8]": {
-    "expected_reward": 3.5688089297933554,
-    "mean_nll": 95.53142922346738,
-    "perplexity": 7.026024244778928,
-    "avg_length": 49.00000000000003,
-    "entropy": 5.285375996873662,
+    "expected_reward": 3.5848531266255095,
+    "mean_nll": 91.17186837928719,
+    "perplexity": 6.427915968669452,
+    "avg_length": 49.00000000000004,
+    "entropy": 5.285836942938335,
     "num_samples": 160
   },
   "SMC[topk=10; beta=1.0; N=8]": {
-    "expected_reward": 2.9399389119189814,
-    "mean_nll": 95.70145763857309,
-    "perplexity": 7.050446669660119,
-    "avg_length": 48.99999999999992,
-    "entropy": 5.310071431185751,
+    "expected_reward": 2.7448150774244184,
+    "mean_nll": 87.78786315095154,
+    "perplexity": 5.998977535142917,
+    "avg_length": 49.00000000000002,
+    "entropy": 5.509076393110662,
     "num_samples": 160
   },
   "SMC[topk=10; beta=5.0; N=8]": {
-    "expected_reward": 3.2025149037539826,
-    "mean_nll": 101.16838664009015,
-    "perplexity": 7.882624855071096,
-    "avg_length": 49.000000000000014,
-    "entropy": 5.245618057390046,
+    "expected_reward": 3.1703705278362415,
+    "mean_nll": 92.84826343611245,
+    "perplexity": 6.651633869186759,
+    "avg_length": 49.000000000000036,
+    "entropy": 5.252899713517161,
     "num_samples": 160
   },
   "TSMC[topk=10; N=8; beta=10.0]": {
-    "expected_reward": 3.5203385999440466,
-    "mean_nll": 102.9871389577904,
-    "perplexity": 8.180705109273054,
-    "avg_length": 49.0,
-    "entropy": 4.813555011634345,
+    "expected_reward": 3.07738682109679,
+    "mean_nll": 108.99690568549737,
+    "perplexity": 9.248178809152426,
+    "avg_length": 48.999999999999964,
+    "entropy": 4.855020901008769,
     "num_samples": 160
   },
   "TSMC[topk=10; N=8; beta=1.0]": {
-    "expected_reward": 2.907887251835952,
-    "mean_nll": 98.24234029856812,
-    "perplexity": 7.425690822134649,
+    "expected_reward": 3.1483394196776064,
+    "mean_nll": 83.48632281977997,
+    "perplexity": 5.494801736671436,
     "avg_length": 48.99999999999994,
-    "entropy": 5.111506395303213,
+    "entropy": 5.149256195699943,
     "num_samples": 160
   },
   "TSMC[topk=10; N=8; beta=5.0]": {
-    "expected_reward": 3.6267749583967435,
-    "mean_nll": 118.60170608053663,
-    "perplexity": 11.250842123098504,
-    "avg_length": 49.000000000000064,
-    "entropy": 4.742249363184608,
+    "expected_reward": 3.845689075301351,
+    "mean_nll": 95.09640518684064,
+    "perplexity": 6.963922986182214,
+    "avg_length": 48.99999999999999,
+    "entropy": 4.818955168981148,
     "num_samples": 160
   }
 }

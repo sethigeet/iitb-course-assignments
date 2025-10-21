@@ -34,6 +34,7 @@ def main():
         ax.hist(weights, bins=bins)
         ax.set_title(f"Prompt {prompt_id}")
         ax.set_xlim(0, 1)
+        ax.set_ylim(0, 8)
         ax.set_xlabel("Normalized weight")
         ax.set_ylabel("Count")
         ax.set_xticks(bins)
