@@ -29,8 +29,8 @@ def greedy_decode(tokenizer, model, prefix: str, max_new: int, eos_id: int) -> s
     Returns:
         str: Generated text continuation (excluding input prefix)
     """
-    output = ""
     input_ids = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+    input_ids_size = len(input_ids[0])
 
     for _ in range(max_new):
         outputs = model(input_ids)
@@ -43,16 +43,12 @@ def greedy_decode(tokenizer, model, prefix: str, max_new: int, eos_id: int) -> s
         if next_token_id == eos_id:
             break
 
-        # Decode the generated token
-        next_token = tokenizer.decode([next_token_id], skip_special_tokens=True)
-        output += next_token
-
         # Update input_ids for next iteration
         input_ids = torch.cat(
             [input_ids, torch.tensor([[next_token_id]]).to(model.device)], dim=1
         )
 
-    return output
+    return tokenizer.decode(input_ids[0][input_ids_size:], skip_special_tokens=True)
 
 
 @torch.no_grad()
@@ -72,8 +68,8 @@ def temperature_decode(
     Returns:
         str: Generated text continuation (excluding input prefix)
     """
-    output = ""
     input_ids = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+    input_ids_size = len(input_ids[0])
 
     for _ in range(max_new):
         outputs = model(input_ids)
@@ -90,16 +86,12 @@ def temperature_decode(
         if next_token_id == eos_id:
             break
 
-        # Decode the generated token
-        next_token = tokenizer.decode([next_token_id], skip_special_tokens=True)
-        output += next_token
-
         # Update input_ids for next iteration
         input_ids = torch.cat(
             [input_ids, torch.tensor([[next_token_id]]).to(model.device)], dim=1
         )
 
-    return output
+    return tokenizer.decode(input_ids[0][input_ids_size:], skip_special_tokens=True)
 
 
 @torch.no_grad()
@@ -119,8 +111,8 @@ def topk_decode(
     Returns:
         str: Generated text continuation (excluding input prefix)
     """
-    output = ""
     input_ids = tokenizer.encode(prefix, return_tensors="pt").to(model.device)
+    input_ids_size = len(input_ids[0])
 
     for _ in range(max_new):
         outputs = model(input_ids)
@@ -138,13 +130,9 @@ def topk_decode(
         if next_token_id == eos_id:
             break
 
-        # Decode the generated token
-        next_token = tokenizer.decode([next_token_id], skip_special_tokens=True)
-        output += next_token
-
         # Update input_ids for next iteration
         input_ids = torch.cat(
             [input_ids, torch.tensor([[next_token_id]]).to(model.device)], dim=1
         )
 
-    return output
+    return tokenizer.decode(input_ids[0][input_ids_size:], skip_special_tokens=True)

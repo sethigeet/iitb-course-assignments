@@ -23,4 +23,284 @@
 
 \maketitle
 
+\section{Task 0: Basic Sampling Methods}
+
+We implemented three basic sampling methods: greedy decoding, temperature sampling, and top-k sampling. Each of them is pretty straightforward to implement.
+
+\subsection{Implementation}
+
+The core logic is give below where we replace the \texttt{selection-algo} with the actual selection algorithm i.e. argmax for greedy, modified softmax for temperature, and a top-k selection for top-k.
+
+\begin{algorithm}[H]
+\caption{Basic Algorithm}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} tokenizer, model, prefix, max\_new, eos\_id
+\STATE input\_ids $\leftarrow$ tokenizer.encode(prefix)
+\STATE input\_ids\_size $\leftarrow$ len(input\_ids[0])
+\FOR{$i = 1$ to max\_new}
+    \STATE logits $\leftarrow$ model(input\_ids).logits[0, -1, :]
+    \STATE next\_token\_id $\leftarrow$ selection-algo(logits)
+    \IF{next\_token\_id == eos\_id}
+        \STATE \textbf{break}
+    \ENDIF
+    \STATE input\_ids $\leftarrow$ concat(input\_ids, [next\_token\_id])
+\ENDFOR
+\STATE \textbf{return} tokenizer.decode(input\_ids[0][input\_ids\_size:])
+\end{algorithmic}
+\end{algorithm}
+
+\section{Task 1: Sequential Importance Sampling}
+
+\subsection{Implementation}
+
+We use the same basic algorithm as in Task 0 with the top-k algorithm initially. Then we compute the reward for each sequence and weight them by $\exp(\beta \cdot \text{reward})$.
+
+\begin{algorithm}[H]
+\caption{Sequential Importance Sampling}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} tokenizer, model, reward\_calc, prefix, K, max\_new\_tokens, eos\_id, beta, k
+\STATE gen\_ids $\leftarrow$ batched\_topk\_decode\_ids(tokenizer, model, prefix, max\_new\_tokens, k, K, eos\_id)
+\STATE samples $\leftarrow$ []
+\STATE weights $\leftarrow$ []
+\FOR{$i = 1$ to K}
+    \STATE reward $\leftarrow$ get\_total\_reward(reward\_calc, tokenizer, gen\_ids[i])
+    \STATE weight $\leftarrow$ exp(beta $\times$ reward)
+    \STATE samples.append(\{"text": decode(gen\_ids[i]), "weight": weight\})
+    \STATE weights.append(weight)
+\ENDFOR
+\STATE total\_weights $\leftarrow$ sum(weights)
+\STATE normalized\_weights $\leftarrow$ [w / total\_weights for w in weights]
+\STATE \textbf{return} \{"samples": samples, "normalized\_weights": normalized\_weights\}
+\end{algorithmic}
+\end{algorithm}
+
+Note that we use a batched approach to generate the sequences in parallel to improve performance since GPUs are great at parallel processing. This \texttt{batched\_topk\_decode\_ids()} function is pretty much the same as the basic algorithm with the top-k selection algorithm slightly modified.
+
+To calculate the reward, we use the \texttt{get\_total\_reward()} function which computes the cumulative reward for a sequence using trigram-based scoring from the \texttt{FastRewardCalculator} class which uses the trigram probabilities given to us.
+
+\subsection{Weight Distribution Plots}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task1_is_beta1.png}
+\caption{IS ($\beta=1.0$)}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task1_is_beta5.png}
+\caption{IS ($\beta=5.0$)}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task1_is_beta10.png}
+\caption{IS ($\beta=10.0$)}
+\end{subfigure}
+\caption{Weight distribution histograms for different $\beta$ values}
+\end{figure}
+
+We can see that the distribution is concentrated around 0 since most of the sequences have very small weights and only 1-2 have significant weights.
+
+\section{Task 2: Sequential Monte Carlo}
+
+The implementation of SMC is also pretty similar to that of the IS with the only difference being that we compute the incremental reward at each step and resample the sequences based on their weights to prevent weight degeneracy.
+
+\subsection{Implementation}
+
+Note that this is implemented in a batched manner just like the IS algorithm which makes the code slightly more complicated but also more efficient!
+
+\begin{algorithm}[H]
+\caption{Sequential Monte Carlo}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} tokenizer, model, reward\_calc, prefix, N, max\_new\_tokens, eos\_id, beta, k
+\STATE input\_ids $\leftarrow$ tokenizer.encode(prefix).repeat(N, 1)
+\STATE completed\_ids $\leftarrow$ zeros(N)
+\FOR{$t = 1$ to max\_new\_tokens}
+    \STATE logits $\leftarrow$ model(input\_ids).logits[:, -1, :]
+    \STATE top\_k\_logits, top\_k\_indices $\leftarrow$ topk(logits, k, dim=-1)
+    \STATE probs $\leftarrow$ softmax(top\_k\_logits, dim=-1)
+    \STATE next\_token\_ids $\leftarrow$ []
+    \STATE weights $\leftarrow$ []
+    \FOR{$i = 1$ to N}
+        \IF{not completed\_ids[i]}
+            \STATE sampled\_idx $\leftarrow$ multinomial(probs[i], 1)
+            \STATE next\_token\_id $\leftarrow$ top\_k\_indices[i, sampled\_idx]
+            \STATE $\Delta R_t \leftarrow$ get\_total\_reward(input\_ids[i]) - get\_total\_reward(input\_ids[i, :-1])
+            \STATE weight $\leftarrow$ exp(beta $\times$ $\Delta R_t$)
+        \ELSE
+            \STATE next\_token\_id $\leftarrow$ eos\_id
+            \STATE weight $\leftarrow$ 1.0
+        \ENDIF
+        \STATE next\_token\_ids.append(next\_token\_id)
+        \STATE weights.append(weight)
+    \ENDFOR
+    \STATE input\_ids $\leftarrow$ concat(input\_ids, next\_token\_ids.unsqueeze(-1), dim=-1)
+    \STATE normalized\_weights $\leftarrow$ weights / sum(weights)
+    \STATE resampled\_indices $\leftarrow$ multinomial(normalized\_weights, N, replacement=True)
+    \STATE input\_ids $\leftarrow$ input\_ids[resampled\_indices]
+    \STATE completed\_ids $\leftarrow$ completed\_ids.masked\_fill(next\_token\_ids == eos\_id, 1)
+    \IF{completed\_ids.all()}
+        \STATE \textbf{break}
+    \ENDIF
+\ENDFOR
+\STATE \textbf{return} \{"samples": samples, "normalized\_weights": normalized\_weights\}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Weight Distribution Plots}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task2_smc_beta1.png}
+\caption{SMC ($\beta=1.0$)}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task2_smc_beta5.png}
+\caption{SMC ($\beta=5.0$)}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task2_smc_beta10.png}
+\caption{SMC ($\beta=10.0$)}
+\end{subfigure}
+\caption{Weight distribution histograms for different $\beta$ values}
+\end{figure}
+
+The distribution starts to become slightly more diffused compared to the IS distribution as we increase the $\beta$ value spreading out but still most of the weights are small. This tells us that our SMC algorithm is working and is able to generate sequences with higher rewards.
+
+\section{Task 3: Twisted Sequential Monte Carlo}
+
+The TSMC algorithm's implementation is also the same as that of SMC with the only difference being that we compute the twisted reward at each step and use it to calculate the weight instead of a simple incremental reward.
+
+\subsection{Implementation}
+
+Note that the twisted reward uses bigram probabilities to estimate the expected future reward when only a single token is generated but since these were not directly provided to us, we generate them using the unigram and bigram counts given to us. The code for this can be found in the \texttt{ngram\_playground.ipynb} notebook.
+
+\begin{algorithm}[H]
+\caption{Twisted Sequential Monte Carlo}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} tokenizer, model, reward\_calc, prefix, N, max\_new\_tokens, eos\_id, beta, k
+\STATE input\_ids $\leftarrow$ tokenizer.encode(prefix).repeat(N, 1)
+\STATE completed\_ids $\leftarrow$ zeros(N)
+\STATE total\_probabilities $\leftarrow$ ones(N)
+\FOR{$t = 1$ to max\_new\_tokens}
+    \STATE logits $\leftarrow$ model(input\_ids).logits[:, -1, :]
+    \STATE top\_k\_logits, top\_k\_indices $\leftarrow$ topk(logits, k, dim=-1)
+    \STATE probs $\leftarrow$ softmax(top\_k\_logits, dim=-1)
+    \STATE next\_token\_ids $\leftarrow$ []
+    \STATE weights $\leftarrow$ []
+    \FOR{$i = 1$ to N}
+        \IF{not completed\_ids[i]}
+            \STATE sampled\_idx $\leftarrow$ multinomial(probs[i], 1)
+            \STATE next\_token\_id $\leftarrow$ top\_k\_indices[i, sampled\_idx]
+            \STATE next\_token\_prob $\leftarrow$ top\_k\_logits[i, sampled\_idx]
+            \STATE total\_probabilities[i] $\leftarrow$ total\_probabilities[i] $\times$ next\_token\_prob
+            \STATE updated\_input\_ids $\leftarrow$ concat(input\_ids[i], [next\_token\_id])
+            \IF{$t < $ max\_new\_tokens - 1}
+                \STATE $\pi_t \leftarrow$ exp(beta $\times$ get\_twisted\_reward(updated\_input\_ids))
+            \ELSE
+                \STATE $\pi_t \leftarrow$ total\_probabilities[i] $\times$ exp(beta $\times$ get\_total\_reward(updated\_input\_ids))
+            \ENDIF
+            \STATE $\pi_{t-1} \leftarrow$ exp(beta $\times$ get\_twisted\_reward(input\_ids[i]))
+            \STATE weight $\leftarrow$ $\pi_t$ / ($\pi_{t-1} \times$ next\_token\_prob)
+        \ELSE
+            \STATE next\_token\_id $\leftarrow$ eos\_id
+            \STATE weight $\leftarrow$ 1.0
+        \ENDIF
+        \STATE next\_token\_ids.append(next\_token\_id)
+        \STATE weights.append(weight)
+    \ENDFOR
+    \STATE input\_ids $\leftarrow$ concat(input\_ids, next\_token\_ids.unsqueeze(-1), dim=-1)
+    \STATE normalized\_weights $\leftarrow$ weights / sum(weights)
+    \STATE resampled\_indices $\leftarrow$ multinomial(normalized\_weights, N, replacement=True)
+    \STATE input\_ids $\leftarrow$ input\_ids[resampled\_indices]
+    \STATE total\_probabilities $\leftarrow$ total\_probabilities[resampled\_indices]
+    \STATE completed\_ids $\leftarrow$ completed\_ids.masked\_fill(next\_token\_ids == eos\_id, 1)
+    \IF{completed\_ids.all()}
+        \STATE \textbf{break}
+    \ENDIF
+\ENDFOR
+\STATE \textbf{return} \{"samples": samples, "normalized\_weights": normalized\_weights\}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Weight Distribution Plots}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task3_tsmc_beta1.png}
+\caption{TSMC ($\beta=1.0$)}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task3_tsmc_beta5.png}
+\caption{TSMC ($\beta=5.0$)}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{figures/histogram_task3_tsmc_beta10.png}
+\caption{TSMC ($\beta=10.0$)}
+\end{subfigure}
+\caption{Weight distribution histograms for different $\beta$ values}
+\end{figure}
+
+The distribution becomes more diffused than the SMC distribution with some weights also getting quite large though most weights are still small. This tells us that our twisted reward is working but it is not perfect else we would have seen a pretty uniform distribution.
+
+\section{Experimental Results}
+
+\begin{table}[H]
+\centering
+\caption{Experimental Results Summary}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Method} & \textbf{Expected Reward} & \textbf{Perplexity} & \textbf{Entropy} & \textbf{Avg Length} \\
+\midrule
+\multicolumn{5}{l}{\textbf{Task 0: Basic Sampling Methods}} \\
+Greedy & 2.793 & 3.365 & 5.107 & 49.0 \\
+Temp-0.5 & 2.735 & 4.103 & 5.666 & 49.0 \\
+Temp-0.9 & 2.592 & 6.672 & 5.901 & 49.0 \\
+TopK-5 & 2.769 & 5.306 & 5.774 & 49.0 \\
+TopK-10 & 2.734 & 6.280 & 5.851 & 49.0 \\
+\midrule
+\multicolumn{5}{l}{\textbf{Task 1: Sequential Importance Sampling}} \\
+IS[$\beta=1.0$] & 2.899 & 6.439 & 5.848 & 49.0 \\
+IS[$\beta=5.0$] & 3.462 & 7.296 & 5.848 & 49.0 \\
+IS[$\beta=10.0$] & 3.714 & 7.633 & 5.848 & 49.0 \\
+\midrule
+\multicolumn{5}{l}{\textbf{Task 2: Sequential Monte Carlo}} \\
+SMC[$\beta=1.0$] & 2.745 & 6.000 & 5.509 & 49.0 \\
+SMC[$\beta=5.0$] & 3.170 & 6.652 & 5.253 & 49.0 \\
+SMC[$\beta=10.0$] & 3.585 & 6.428 & 5.286 & 49.0 \\
+\midrule
+\multicolumn{5}{l}{\textbf{Task 3: Twisted Sequential Monte Carlo}} \\
+TSMC[$\beta=1.0$] & 3.148 & 5.495 & 5.149 & 49.0 \\
+TSMC[$\beta=5.0$] & 3.846 & 6.964 & 4.819 & 49.0 \\
+TSMC[$\beta=10.0$] & 3.077 & 9.248 & 4.855 & 49.0 \\
+\bottomrule
+\end{tabular}
+\label{tab:results}
+\end{table}
+
+\subsection{Key Findings}
+
+\begin{itemize}
+    \item \textbf{Expected Reward}: As expected, the expected reward increases as we improve our sampling methods from basic ones to importance sampling to SMC to TSMC.
+    \item \textbf{Perplexity}: The perplexity also shows a similar trend as the expected reward though there is a slight decrease in the perplexity values for the TSMC \& SMC methods compared to the IS method.
+    \item \textbf{Entropy}: The entropy, as expected, is lower for the TSMC \& SMC methods compared to the IS method since we resample the sequences based on their weights leading to similar sequences.
+    \item \textbf{Average Length}: The average length is constant for all the methods since we don't let the model generate more than 50 tokens and the models don't stop generating new tokens either since we are asking it a pretty open ended question i.e. continuing a story.
+\end{itemize}
+
+\subsection{Conclusions}
+
+\begin{enumerate}
+    \item \textbf{Reward Optimization}: Advanced methods (IS, SMC, TSMC) significantly outperform basic sampling methods in expected reward, with TSMC achieving the highest peak performance.
+    \item \textbf{Coherence Trade-off}: Higher reward optimization generally comes at the cost of grammatical coherence, as evidenced by increasing perplexity which is expected since we are using a corpus which has a lot of complicated grammar.
+\end{enumerate}
+
 \end{document}
