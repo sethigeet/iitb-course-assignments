@@ -110,5 +110,13 @@
     "avg_length": 48.99999999999999,
     "entropy": 4.818955168981148,
     "num_samples": 160
+  },
+  "PowerMCMC[alpha=4.0; steps=10; k=10]": {
+    "expected_reward": 2.339661350600017,
+    "mean_nll": 61.570582175916755,
+    "perplexity": 3.513253367055931,
+    "avg_length": 49.00000000000001,
+    "entropy": 5.773714278541386,
+    "num_samples": 160
   }
 }

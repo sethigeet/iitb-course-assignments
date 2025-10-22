@@ -178,7 +178,7 @@ The TSMC algorithm's implementation is also the same as that of SMC with the onl
 
 \subsection{Implementation}
 
-Note that the twisted reward uses bigram probabilities to estimate the expected future reward when only a single token is generated but since these were not directly provided to us, we generate them using the unigram and bigram counts given to us. The code for this can be found in the \texttt{ngram\_playground.ipynb} notebook.
+Note that the twisted reward uses bigram probabilities to estimate the expected future reward when only a single token is generated but since these were not directly provided to us, we generate them using the unigram and bigram counts given to us. We also generate the expected rewards for the next token using the 1st token and the 1st two tokens before hand to avoid recomputing them at each step. The code for this can be found in \texttt{utils.py}. (These files are generated once and then cached for future use.)
 
 \begin{algorithm}[H]
 \caption{Twisted Sequential Monte Carlo}
@@ -252,6 +252,14 @@ Note that the twisted reward uses bigram probabilities to estimate the expected 
 
 The distribution becomes more diffused than the SMC distribution with some weights also getting quite large though most weights are still small. This tells us that our twisted reward is working but it is not perfect else we would have seen a pretty uniform distribution.
 
+\section{Task 4: Bonus Task}
+
+We take inspiration from the paper by A. Karan et al. \cite{karan2025reasoning} where they propose a method to improve the reasoning capabilities of the model by sampling from the power distribution of the model's output instead of training a separate reasoning model. To implement this, they use Metropolis-Hastings sampling to sample from the power distribution since sampling directly from the power distribution is not easy.
+
+We use a similar algorithm as our base but incorporate our reward function to guide the sampling process in our favour. The code for this can be found in \texttt{generate\_task4\_power.py}.
+
+However, since the power distribution makes the output more peaked (similar to temperature sampling), it turns out to not be very effective for our task and the results are not very good.
+
 \section{Experimental Results}
 
 \begin{table}[H]
@@ -282,6 +290,9 @@ SMC[$\beta=10.0$] & 3.585 & 6.428 & 5.286 & 49.0 \\
 TSMC[$\beta=1.0$] & 3.148 & 5.495 & 5.149 & 49.0 \\
 TSMC[$\beta=5.0$] & 3.846 & 6.964 & 4.819 & 49.0 \\
 TSMC[$\beta=10.0$] & 3.077 & 9.248 & 4.855 & 49.0 \\
+\midrule
+\multicolumn{5}{l}{\textbf{Task 4: Bonus Task}} \\
+PowerMCMC[$\alpha=4.0; steps=10; k=10$] & 2.340 & 3.513 & 5.774 & 49.0 \\
 \bottomrule
 \end{tabular}
 \label{tab:results}
@@ -302,5 +313,12 @@ TSMC[$\beta=10.0$] & 3.077 & 9.248 & 4.855 & 49.0 \\
     \item \textbf{Reward Optimization}: Advanced methods (IS, SMC, TSMC) significantly outperform basic sampling methods in expected reward, with TSMC achieving the highest peak performance.
     \item \textbf{Coherence Trade-off}: Higher reward optimization generally comes at the cost of grammatical coherence, as evidenced by increasing perplexity which is expected since we are using a corpus which has a lot of complicated grammar.
 \end{enumerate}
+
+\section{References}
+
+\begin{thebibliography}{9}
+\bibitem{karan2025reasoning}
+Karan, A. et al. (2025). Reasoning with Sampling: Your Base Model is Smarter Than You Think. arXiv:2510.14901v1.
+\end{thebibliography}
 
 \end{document}
