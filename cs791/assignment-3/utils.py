@@ -1,5 +1,7 @@
 import json
+import math
 import os
+import pickle
 import random
 import time
 from typing import Dict, Iterable, List, Tuple
@@ -117,6 +119,76 @@ def load_model(
     return tokenizer, model, model.config.eos_token_id  # type: ignore
 
 
+def generate_bigram_probs(counts_dir: str):
+    with open(os.path.join(counts_dir, "bigram_counts.json"), "r") as f:
+        bigram_counts = json.load(f)
+
+    total_count = sum(bigram_counts.values())
+
+    for bigram in bigram_counts.keys():
+        bigram_counts[bigram] = bigram_counts[bigram] / total_count
+
+    with open(os.path.join(counts_dir, "bigram_probs.pkl"), "wb") as f:
+        pickle.dump(bigram_counts, f)
+
+
+def generate_bigram_counts_by_unigram(counts_dir: str):
+    with open(os.path.join(counts_dir, "bigram_counts.json"), "r") as f:
+        bigram_counts = json.load(f)
+
+    with open(os.path.join(counts_dir, "unigram_counts.json"), "r") as f:
+        unigram_counts = json.load(f)
+
+    with open(os.path.join(counts_dir, "vocab.json"), "r") as f:
+        vocab = json.load(f)
+
+    bigram_counts_by_unigram = {}
+    for unigram in unigram_counts.keys():
+        bigram_counts_by_unigram[unigram] = {}
+
+    for unigram in unigram_counts.keys():
+        for token in vocab.keys():
+            bigram = f"{unigram},{token}"
+            if bigram in bigram_counts:
+                bigram_counts_by_unigram[unigram][token] = bigram_counts[bigram]
+
+    with open(os.path.join(counts_dir, "bigram_counts_by_unigram.json"), "w") as f:
+        json.dump(bigram_counts_by_unigram, f, indent=2, ensure_ascii=False)
+
+
+def generate_expected_rewards(counts_dir: str):
+    with open(os.path.join(counts_dir, "trigram_probs.pkl"), "rb") as f:
+        trigram_probs = pickle.load(f)["trigram_probs"]
+    with open(os.path.join(counts_dir, "bigram_probs.pkl"), "rb") as f:
+        bigram_probs = pickle.load(f)
+
+    with open(os.path.join(counts_dir, "trigram_counts.json"), "rb") as f:
+        trigram_counts = json.load(f)
+    with open(os.path.join(counts_dir, "bigram_counts_by_unigram.json"), "rb") as f:
+        bigram_counts_by_unigram = json.load(f)
+
+    expected_rewards = {}
+
+    for bigram in trigram_counts.keys():
+        for token in trigram_counts[bigram].keys():
+            prob = trigram_probs.get(f"{bigram},{token}", 0)
+            if prob == 0:
+                continue
+            reward = prob * (-math.log(prob))
+            expected_rewards[bigram] = expected_rewards.get(bigram, 0) + reward
+
+    for unigram in bigram_counts_by_unigram.keys():
+        for token in bigram_counts_by_unigram[unigram].keys():
+            prob = bigram_probs.get(f"{unigram},{token}", 0)
+            if prob == 0:
+                continue
+            reward = prob * (-math.log(prob))
+            expected_rewards[unigram] = expected_rewards.get(unigram, 0) + reward
+
+    with open(os.path.join(counts_dir, "expected_rewards.pkl"), "wb") as f:
+        pickle.dump(expected_rewards, f)
+
+
 def load_counts_and_reward(
     counts_dir: str, epsilon: float = 1e-9
 ) -> FastRewardCalculator:
@@ -131,6 +203,22 @@ def load_counts_and_reward(
     """
     trigram_probs_file = os.path.join(counts_dir, "trigram_probs.pkl")
     expected_rewards_file = os.path.join(counts_dir, "expected_rewards.pkl")
+
+    if not os.path.exists(trigram_probs_file):
+        raise FileNotFoundError("Trigram probability file not found")
+
+    if not os.path.exists(expected_rewards_file):
+        print("Expected rewards file not found, generating...")
+        if not os.path.exists(os.path.join(counts_dir, "bigram_probs.pkl")):
+            generate_bigram_probs(counts_dir)
+        if not os.path.exists(
+            os.path.join(counts_dir, "bigram_counts_by_unigram.json")
+        ):
+            generate_bigram_counts_by_unigram(counts_dir)
+        if not os.path.exists(os.path.join(counts_dir, "expected_rewards.pkl")):
+            generate_expected_rewards(counts_dir)
+        print("Successfully generated expected rewards")
+
     return FastRewardCalculator(
         trigram_probs_file, expected_rewards_file, epsilon=epsilon
     )
