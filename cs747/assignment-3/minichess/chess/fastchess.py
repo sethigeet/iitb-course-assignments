@@ -364,11 +364,11 @@ class Chess:
         self.reset_en_passant()
         self.turn = inv_color(self.turn)
 
-    def find_king(self, turn: bool):
+    def find_king(self, turn: int):
         """Returns the position of the king. (i, j)"""
         return self.bit_pos(self.bitboards[turn, 5])
 
-    def find_queen(self, turn: bool):
+    def find_queen(self, turn: int):
         """Returns the position of the queen. (i, j)"""
         return self.bit_pos(self.bitboards[turn, 4])
 
@@ -443,7 +443,7 @@ class Chess:
         ind = int(board & -board).bit_length() - 1
         return unflat(ind, self.dims)
 
-    def piece_at(self, i: np.uint8, j: np.uint8, turn: bool):
+    def piece_at(self, i: np.uint8, j: np.uint8, turn: int):
         """Returns the piece-type of the given color at the given position. -1 if none are found."""
         return self.piece_lookup[turn, i, j]
 
@@ -480,7 +480,7 @@ class Chess:
         return set_bit(0, flat(i, j, self.dims))
 
     def find_checkers(
-        self, all_pieces: np.uint64, enemy_turn: bool, king_pos: Tuple[int, int]
+        self, all_pieces: np.uint64, enemy_turn: int, king_pos: Tuple[int, int]
     ):
         """Finds the pieces giving check to the player to move's king.
 
@@ -571,7 +571,7 @@ class Chess:
         self,
         all_pieces: np.uint64,
         enemy_pieces: np.uint64,
-        enemy_turn: bool,
+        enemy_turn: int,
         king_pos: Tuple[int, int],
     ):
         """Finds a bitboard of all pieces that are absolutely pinned.
