@@ -227,7 +227,7 @@ if __name__ == "__main__":
             result_3[test_agent_3.name]["total_wins"]
             - result_3[rational.name]["total_wins"]
         )
-        print(f"TASK-1 score: {task_3_score}")
+        print(f"TASK-3 score: {task_3_score}")
         if task_3_score < POINT_THRESHOLDS[2]:
             print(
                 f"        \033[2;31;41m FAILED \033[0;0m : {task_3_score} < {POINT_THRESHOLDS[2]}"

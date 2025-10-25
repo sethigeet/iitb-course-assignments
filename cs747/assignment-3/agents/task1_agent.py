@@ -1,7 +1,7 @@
 import numpy as np
 
 from minichess.chess.fastchess import Chess
-from minichess.chess.fastchess_utils import piece_matrix_to_legal_moves
+from minichess.chess.fastchess_utils import bit_count, piece_matrix_to_legal_moves
 
 from .base_agent import BaseAgent
 
@@ -13,69 +13,73 @@ PIECE_VALUES = {
     4: 900,  # Queen
     5: 0,  # King
 }
+PIECE_VALUES_ARRAY = np.array([100, 300, 300, 500, 900, 0])
 CHECKMATE_SCORE = 1000000
 PAWN_PROMOTION_BONUS = 10
 CHECK_BONUS = 40
-PIN_BONUS = 25
 DRAW_SCORE = 0
 
 
-def evaluate_board(board: Chess):
+def evaluate_board(board: Chess, original_turn: int):
+    # NOTE: We always evaluate the board from the perspective of the original turn
+    # player since this is handled appropriately in the minimax function
+
+    white_multiplier = 1 if original_turn == 1 else -1
+    black_multiplier = 1 if original_turn == 0 else -1
+
     # Check if the game is over
     result = board.game_result()
     if result is not None:
         if result == 1:
-            # NOTE: This has the be the other way around since this function is
-            # called after the game is over so the last move was the player who
-            # led to the game ending
-            return -CHECKMATE_SCORE if board.turn == 1 else CHECKMATE_SCORE
+            return white_multiplier * CHECKMATE_SCORE
         elif result == -1:
-            return -CHECKMATE_SCORE if board.turn == 0 else CHECKMATE_SCORE
+            return black_multiplier * CHECKMATE_SCORE
         else:
             return DRAW_SCORE
-
-    # NOTE: We always evaluate the board from the perspective of the white
-    # player since this is handled appropriately in the minimax function
 
     score = 0
 
     # Add scores for all pieces on the board
-    for i in range(5):
-        for j in range(4):
-            piece_type, piece_color = board.any_piece_at(i, j)  # type: ignore
-            if piece_type != -1:
-                if piece_color == 1:
-                    score += PIECE_VALUES[piece_type]
-                    if piece_type == 0:
-                        score += PAWN_PROMOTION_BONUS * (board.dims[0] - 1 - i)
-                else:
-                    score -= PIECE_VALUES[piece_type]
-                    if piece_type == 0:
-                        score -= PAWN_PROMOTION_BONUS * (board.dims[0] - 1 - i)
+    score += (
+        white_multiplier
+        * PIECE_VALUES_ARRAY[
+            board.piece_lookup[1, :, :][board.piece_lookup[1, :, :] != -1]
+        ].sum()
+    )
+    score += (
+        black_multiplier
+        * PIECE_VALUES_ARRAY[
+            board.piece_lookup[0, :, :][board.piece_lookup[0, :, :] != -1]
+        ].sum()
+    )
 
-    # all_pieces = board.get_all_pieces(False)
-    # white_pieces = board.get_all_pieces(False, [1])
-    # white_king_pos = board.find_king(1)
-    # black_pieces = board.get_all_pieces(False, [0])
-    # black_king_pos = board.find_king(0)
+    # Add bonus for pawn promotion
+    score += (
+        white_multiplier
+        * PAWN_PROMOTION_BONUS
+        * (board.dims[0] - 1 - np.where(board.piece_lookup[1, :, :] == 0)[0]).sum()
+    )
+    score += (
+        black_multiplier
+        * PAWN_PROMOTION_BONUS
+        * (np.where(board.piece_lookup[0, :, :] == 0)[0]).sum()
+    )
+
+    all_pieces = board.get_all_pieces(False)
+    white_king_pos = board.find_king(1)
+    black_king_pos = board.find_king(0)
 
     # Add bonus for check
-    # score -= CHECK_BONUS * bit_count(board.find_checkers(all_pieces, 0, white_king_pos))
-    # score += CHECK_BONUS * bit_count(board.find_checkers(all_pieces, 1, black_king_pos))
-
-    # Add bonus for pinned pieces
-    # white_pinned_pieces = board.find_pinned_pieces(
-    #     all_pieces, black_pieces, 0, white_king_pos
-    # )
-    # black_pinned_pieces = board.find_pinned_pieces(
-    #     all_pieces, white_pieces, 1, black_king_pos
-    # )
-    # for i in range(5):
-    #     for j in range(4):
-    #         if white_pinned_pieces[i, j] != np.iinfo(np.uint64).max:
-    #             score -= PIN_BONUS
-    #         if black_pinned_pieces[i, j] != np.iinfo(np.uint64).max:
-    #             score += PIN_BONUS
+    score += (
+        white_multiplier
+        * CHECK_BONUS
+        * bit_count(board.find_checkers(all_pieces, 0, white_king_pos))
+    )
+    score += (
+        black_multiplier
+        * CHECK_BONUS
+        * bit_count(board.find_checkers(all_pieces, 1, black_king_pos))
+    )
 
     return score
 
@@ -116,7 +120,7 @@ class Task1Agent(BaseAgent):
 
     def minimax(self, board: Chess, depth: int, maximizing: bool):
         if depth == 0 or not board.has_legal_moves or board.game_result() is not None:
-            return evaluate_board(board)
+            return evaluate_board(board, board.turn if maximizing else 1 - board.turn)
 
         piece_matrix, promo_matrix = board.legal_moves()
         legal_moves = piece_matrix_to_legal_moves(piece_matrix, promo_matrix)
