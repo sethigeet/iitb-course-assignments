@@ -15,9 +15,9 @@ PIECE_VALUES = {
 }
 PIECE_VALUES_ARRAY = np.array([100, 300, 300, 500, 900, 0])
 CHECKMATE_SCORE = 1000000
+DRAW_SCORE = 0
 PAWN_PROMOTION_BONUS = 10
 CHECK_BONUS = 40
-DRAW_SCORE = 0
 
 
 def evaluate_board(board: Chess, original_turn: int):
