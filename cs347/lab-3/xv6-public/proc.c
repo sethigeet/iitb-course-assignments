@@ -88,6 +88,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->numsyscalls = 0;
+  p->numtimerints = 0;
 
   release(&ptable.lock);
 
@@ -634,6 +636,44 @@ int get_proc_state(int pid, char *buf, int size)
       break;
     }
   }
+  release(&ptable.lock);
+
+  return res;
+}
+
+int get_num_syscall(int pid)
+{
+  acquire(&ptable.lock);
+
+  struct proc *p;
+  int res = 0;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->pid == pid) {
+      res = p->numsyscalls;
+
+      break;
+    }
+  }
+
+  release(&ptable.lock);
+
+  return res;
+}
+
+int get_num_timerints(int pid)
+{
+  acquire(&ptable.lock);
+
+  struct proc *p;
+  int res = 0;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->pid == pid) {
+      res = p->numtimerints;
+
+      break;
+    }
+  }
+
   release(&ptable.lock);
 
   return res;

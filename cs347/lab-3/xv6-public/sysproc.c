@@ -134,3 +134,21 @@ sys_get_proc_state(void)
     return -1;
   return get_proc_state(pid, buf, size);
 }
+
+int
+sys_get_num_syscall(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+  return get_num_syscall(pid);
+}
+
+int
+sys_get_num_timerints(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+  return get_num_timerints(pid);
+}

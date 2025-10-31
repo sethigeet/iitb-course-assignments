@@ -108,6 +108,8 @@ extern int sys_getsiblings(void);
 extern int sys_pstree(void);
 extern int sys_is_proc_valid(void);
 extern int sys_get_proc_state(void);
+extern int sys_get_num_syscall(void);
+extern int sys_get_num_timerints(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -136,6 +138,8 @@ static int (*syscalls[])(void) = {
 [SYS_pstree]  sys_pstree,
 [SYS_is_proc_valid]  sys_is_proc_valid,
 [SYS_get_proc_state]  sys_get_proc_state,
+[SYS_get_num_syscall]  sys_get_num_syscall,
+[SYS_get_num_timerints]  sys_get_num_timerints,
 };
 
 void
@@ -147,6 +151,7 @@ syscall(void)
   num = curproc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     curproc->tf->eax = syscalls[num]();
+    curproc->numsyscalls++;
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             curproc->pid, curproc->name, num);

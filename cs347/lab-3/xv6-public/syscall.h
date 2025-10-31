@@ -25,3 +25,5 @@
 #define SYS_pstree 24
 #define SYS_is_proc_valid 25
 #define SYS_get_proc_state 26
+#define SYS_get_num_syscall 27
+#define SYS_get_num_timerints 28
