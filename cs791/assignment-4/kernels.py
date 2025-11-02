@@ -12,8 +12,6 @@ def compute_squared_distance(x1, x2):
         Squared distance matrix of shape (n1, n2)
     """
 
-    x1 = np.atleast_2d(x1)
-    x2 = np.atleast_2d(x2)
     return np.sum((x1[:, np.newaxis, :] - x2[np.newaxis, :, :]) ** 2, axis=2)
 
 
