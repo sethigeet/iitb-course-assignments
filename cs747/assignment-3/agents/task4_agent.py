@@ -206,15 +206,33 @@ def evaluate_board(board: Chess, original_turn: int):
     # Re-calculate the legal moves to get back the correct cache
     board.legal_moves()
 
+    # Add bonus for rook on open file
+    # # Check for pawns (piece_type 0) on each file
+    # white_pawns_on_file = np.any(board.piece_lookup[1] == 0, axis=0)
+    # black_pawns_on_file = np.any(board.piece_lookup[0] == 0, axis=0)
+    # pawns_on_file = white_pawns_on_file | black_pawns_on_file
+    # open_files = ~pawns_on_file  # Boolean array [F, T, F, F] (file 1 is open)
+
+    # # Find rooks (piece_type 3) and apply bonus if on an open file
+    # white_rooks = np.argwhere(board.piece_lookup[1] == 3)
+    # for i, j in white_rooks:
+    #     if open_files[j]:
+    #         score += white_multiplier * ROOK_OPEN_FILE_BONUS
+
+    # black_rooks = np.argwhere(board.piece_lookup[0] == 3)
+    # for i, j in black_rooks:
+    #     if open_files[j]:
+    #         score += black_multiplier * ROOK_OPEN_FILE_BONUS
+
     return score
 
 
-class Task3Agent(BaseAgent):
+class Task4Agent(BaseAgent):
     rng = np.random.default_rng(8228)
-    max_depth = 4
+    max_depth = 5
     cache = {}
 
-    def __init__(self, name="Task3Agent"):
+    def __init__(self, name="Task4Agent"):
         super().__init__(name)
 
     def move(self, chess_obj: Chess):

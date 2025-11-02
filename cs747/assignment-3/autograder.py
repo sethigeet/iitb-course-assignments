@@ -13,6 +13,7 @@ from agents.random import RandomAgent
 from agents.task1_agent import Task1Agent
 from agents.task2_agent import Task2Agent
 from agents.task3_agent import Task3Agent
+from agents.task4_agent import Task4Agent
 from minichess.chess.chess_helpers import get_initial_chess_object
 
 # warnings.filterwarnings('ignore')
@@ -250,6 +251,9 @@ if __name__ == "__main__":
             result = play_matches(test_agent, rational)
         elif task_no == 3:
             test_agent = Task3Agent()
+            result = play_matches(test_agent, rational)
+        elif task_no == 4:
+            test_agent = Task4Agent()
             result = play_matches(test_agent, rational)
         else:
             raise ValueError(f"Invalid task number: {task_no}")
