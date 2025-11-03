@@ -1,18 +1,20 @@
 import argparse
+import json
+import os
 
 import torch
 from torchvision import datasets, transforms
 
 from acquisition_functions import expected_improvement, probability_of_improvement
 from kernels import matern_kernel, rational_quadratic_kernel, rbf_kernel
-from utils import seed_everything
+from optimize import bayesian_optimization
+from utils import plot_progression, seed_everything
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Train and Test Models with Hyperparameters"
     )
-    # Add arguments as per requirements
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument(
         "--model_type",
@@ -58,23 +60,7 @@ if __name__ == "__main__":
         "max_budget should be greater than init_points"
     )
 
-    if args.kernel == "rbf":
-        kernel_func = rbf_kernel
-    elif args.kernel == "matern":
-        kernel_func = matern_kernel
-    elif args.kernel == "rational_quadratic":
-        kernel_func = rational_quadratic_kernel
-
-    if args.acquisition_function == "ei":
-        acquisition_func = expected_improvement
-    elif args.acquisition_function == "pi":
-        acquisition_func = probability_of_improvement
-
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-        ]
-    )
+    transform = transforms.Compose([transforms.ToTensor()])
 
     train_validation_dataset = datasets.MNIST(
         root="./data", train=True, download=True, transform=transform
@@ -87,13 +73,45 @@ if __name__ == "__main__":
     train_dataset, validation_dataset = torch.utils.data.random_split(
         train_validation_dataset, [train_size, validation_size]
     )
-    train_val_datasets = (
-        train_dataset,
-        validation_dataset,
-    )  # Give this as input to train_and_test_NN or train_and_test_CNN functions
+    train_val_datasets = (train_dataset, validation_dataset)
 
-    # Perform 'init_points' initial random hyperparameter sampling from the hyperparameter space
+    if args.kernel == "rbf":
+        kernel_func = rbf_kernel
+    elif args.kernel == "matern":
+        kernel_func = matern_kernel
+    elif args.kernel == "rational_quadratic":
+        kernel_func = rational_quadratic_kernel
+    else:
+        raise ValueError(f"Invalid kernel: {args.kernel}")
 
-    for step in range(args.max_budget - args.init_points):
-        # Perform bayesian optimization step
-        continue
+    if args.acquisition_function == "ei":
+        acquisition_func = expected_improvement
+    elif args.acquisition_function == "pi":
+        acquisition_func = probability_of_improvement
+    else:
+        raise ValueError(f"Invalid acquisition function: {args.acquisition_function}")
+
+    results = bayesian_optimization(
+        train_val_datasets,
+        kernel_func,
+        acquisition_func,
+        max_budget=args.max_budget,
+        init_points=args.init_points,
+    )
+
+    os.makedirs("results", exist_ok=True)
+    config_name = f"model_{args.model_type}_kernel_{args.kernel}_acquisition_function_{args.acquisition_function}_max_budget_{args.max_budget}_init_points_{args.init_points}"
+    plot_progression(
+        results["accuracies_history"],
+        f"results/{config_name}_progression.png",
+        f"Validation Accuracy Progression for {config_name}",
+    )
+
+    with open(f"results/{config_name}_results.json", "w") as f:
+        json.dump(results, f, indent=2)
+
+    print(f"\n{'=' * 60}")
+    print("FINAL RESULTS")
+    print(f"{'=' * 60}")
+    print(f"Best Hyperparameters: {results['best_hyperparams']}")
+    print(f"Best Validation Accuracy: {results['best_accuracy']:.4f}")

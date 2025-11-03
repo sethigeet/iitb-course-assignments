@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from models import SimpleNN
 
@@ -17,17 +16,12 @@ def train_and_test_NN(datasets, hyperparams):
     """
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
 
     train_dataset, validation_dataset = datasets
 
     batch_size = hyperparams.get("batch_size", 64)
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=0
-    )
-    validation_loader = DataLoader(
-        validation_dataset, batch_size=batch_size, shuffle=False, num_workers=0
-    )
+    train_loader = DataLoader(train_dataset, batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size, shuffle=False)
 
     hidden_size = hyperparams.get("hidden_size", 500)
     dropout_rate = hyperparams.get("dropout_rate", 0.5)
@@ -51,7 +45,7 @@ def train_and_test_NN(datasets, hyperparams):
     epochs = hyperparams.get("epochs", 10)
     model.train()
 
-    for _ in tqdm(range(epochs)):
+    for _ in range(epochs):
         for batch_idx, (data, target) in enumerate(train_loader):
             data, target = data.to(device), target.to(device)
 
