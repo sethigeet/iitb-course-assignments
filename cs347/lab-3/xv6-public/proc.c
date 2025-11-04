@@ -90,6 +90,7 @@ found:
   p->pid = nextpid++;
   p->numsyscalls = 0;
   p->numtimerints = 0;
+  p->trace = 0;
 
   release(&ptable.lock);
 
@@ -677,4 +678,20 @@ int get_num_timerints(int pid)
   release(&ptable.lock);
 
   return res;
+}
+
+void trace(int pid)
+{
+  acquire(&ptable.lock);
+
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->pid == pid) {
+      p->trace = 1;
+
+      break;
+    }
+  }
+
+  release(&ptable.lock);
 }

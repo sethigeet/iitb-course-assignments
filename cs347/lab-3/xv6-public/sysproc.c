@@ -152,3 +152,14 @@ sys_get_num_timerints(void)
     return -1;
   return get_num_timerints(pid);
 }
+
+int
+sys_trace(void)
+{
+  int pid;
+  if(argint(0, &pid) < 0)
+    return -1;
+
+  trace(pid);
+  return 0;
+}

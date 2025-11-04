@@ -127,6 +127,7 @@ int             is_proc_valid(int);
 int             get_proc_state(int, char*, int);
 int             get_num_syscall(int);
 int             get_num_timerints(int);
+void            trace(int);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

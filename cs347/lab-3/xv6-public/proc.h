@@ -53,6 +53,7 @@ struct proc {
   // Custom entries
   uint numsyscalls;            // The number of syscalls made by the process
   uint numtimerints;           // The number of timer interrupts made by the process
+  uint trace;                  // Whether the process is being traced or not
 };
 
 // Process memory is laid out contiguously, low addresses first:
