@@ -1,0 +1,5 @@
+https://www.chess.com/terms/chess-piece-value
+https://www.reddit.com/r/arduino/comments/123f5q3/microchess_move_evaluation_function/
+https://www.chess.com/terms/chess-strategy
+https://www.quora.com/How-do-you-strategically-position-your-pieces-in-chess
+https://levelup.gitconnected.com/improving-minimax-performance-fc82bc337dfd
