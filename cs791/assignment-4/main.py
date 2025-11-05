@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+from functools import partial
 
 import torch
 from torchvision import datasets, transforms
@@ -8,6 +9,8 @@ from torchvision import datasets, transforms
 from acquisition_functions import expected_improvement, probability_of_improvement
 from kernels import matern_kernel, rational_quadratic_kernel, rbf_kernel
 from optimize import bayesian_optimization
+from space_utils import HYPERPARAMETER_UTILS_CNN, HYPERPARAMETER_UTILS_NN
+from train_test import train_and_test_CNN, train_and_test_NN
 from utils import plot_progression, seed_everything
 
 
@@ -75,6 +78,15 @@ if __name__ == "__main__":
     )
     train_val_datasets = (train_dataset, validation_dataset)
 
+    if args.model_type == "nn":
+        black_box_function = partial(train_and_test_NN, datasets=train_val_datasets)
+        hyperparameter_utils = HYPERPARAMETER_UTILS_NN
+    elif args.model_type == "cnn":
+        black_box_function = partial(train_and_test_CNN, datasets=train_val_datasets)
+        hyperparameter_utils = HYPERPARAMETER_UTILS_CNN
+    else:
+        raise ValueError(f"Invalid model type: {args.model_type}")
+
     if args.kernel == "rbf":
         kernel_func = rbf_kernel
     elif args.kernel == "matern":
@@ -92,13 +104,13 @@ if __name__ == "__main__":
         raise ValueError(f"Invalid acquisition function: {args.acquisition_function}")
 
     results = bayesian_optimization(
-        train_val_datasets,
+        black_box_function,
         kernel_func,
         acquisition_func,
+        hyperparameter_utils,
         max_budget=args.max_budget,
         init_points=args.init_points,
     )
-
     os.makedirs("results", exist_ok=True)
     config_name = f"model_{args.model_type}_kernel_{args.kernel}_acquisition_function_{args.acquisition_function}_max_budget_{args.max_budget}_init_points_{args.init_points}"
     plot_progression(

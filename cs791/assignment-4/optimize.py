@@ -1,39 +1,27 @@
 import numpy as np
 from tqdm import tqdm
 
-from train_test import train_and_test_NN
 from utils import (
-    HYPERPARAMETER_SPACE,
     gaussian_process_predict,
     get_candidates,
-    hyperparams_to_vector,
     optimize_hyperparameters,
-    sample_random_hyperparams,
-    vector_to_hyperparams,
 )
 
 MAX_CANDIDATES = 1000
 
 
 def bayesian_optimization(
-    train_val_datasets,
+    black_box_function,
     kernel_func,
     acquisition_func,
+    hyperparameter_utils,
     max_budget=25,
     init_points=10,
 ):
     """Run Bayesian Optimization loop."""
 
-    space = HYPERPARAMETER_SPACE
-    num_candidates = min(
-        MAX_CANDIDATES,
-        len(space["hidden_size"])
-        * len(space["epochs"])
-        * len(space["learning_rate"])
-        * len(space["batch_size"])
-        * len(space["dropout_rate"])
-        * len(space["weight_decay"]),
-    )
+    space = hyperparameter_utils["space"]
+    num_candidates = min(MAX_CANDIDATES, hyperparameter_utils["num_candidates"])
 
     # Store all evaluated hyperparameters and their accuracies
     X_evaluated = []  # Normalized hyperparameter vectors
@@ -49,11 +37,11 @@ def bayesian_optimization(
     # Warm-up phase: Random sampling
     pbar = tqdm(range(init_points), desc="Warm-up phase")
     for i in pbar:
-        hyperparams = sample_random_hyperparams(space)
+        hyperparams = hyperparameter_utils["sample_random_hyperparams"](space)
         hyperparams_history.append(hyperparams)
 
         # Evaluate
-        accuracy = train_and_test_NN(train_val_datasets, hyperparams)
+        accuracy = black_box_function(hyperparams=hyperparams)
         accuracies_history.append(accuracy)
 
         # Update best
@@ -61,7 +49,7 @@ def bayesian_optimization(
             best_accuracy = accuracy
             best_hyperparams = hyperparams.copy()
 
-        X_evaluated.append(hyperparams_to_vector(hyperparams))
+        X_evaluated.append(hyperparameter_utils["hyperparams_to_vector"](hyperparams))
         y_evaluated.append(accuracy)
         pbar.set_postfix(
             accuracy=f"Accuracy: {accuracy:.4f} (Best: {best_accuracy:.4f})"
@@ -82,7 +70,7 @@ def bayesian_optimization(
         # for all possible candidates, but this is computationally infeasible.
         # Instead, we sample a subset of the candidates and use the GP to
         # predict the acquisition function values for the subset.
-        X_candidates = get_candidates(X_evaluated, space, num_candidates)
+        X_candidates = get_candidates(X_evaluated, hyperparameter_utils, num_candidates)
 
         # Predict the means and standard deviations for the candidates
         mu_s, sigma_s = gaussian_process_predict(
@@ -95,14 +83,14 @@ def bayesian_optimization(
 
         # Select candidate with highest acquisition value
         best_candidate_idx = np.argmax(acquisition_values)
-        next_hyperparams = vector_to_hyperparams(
-            X_candidates[best_candidate_idx], space
+        next_hyperparams = hyperparameter_utils["vector_to_hyperparams"](
+            X_candidates[best_candidate_idx], hyperparameter_utils["space"]
         )
 
         hyperparams_history.append(next_hyperparams)
 
         # Evaluate
-        accuracy = train_and_test_NN(train_val_datasets, next_hyperparams)
+        accuracy = black_box_function(hyperparams=next_hyperparams)
         accuracies_history.append(accuracy)
 
         # Update best
@@ -110,7 +98,9 @@ def bayesian_optimization(
             best_accuracy = accuracy
             best_hyperparams = next_hyperparams.copy()
 
-        X_evaluated.append(hyperparams_to_vector(next_hyperparams))
+        X_evaluated.append(
+            hyperparameter_utils["hyperparams_to_vector"](next_hyperparams)
+        )
         y_evaluated.append(accuracy)
 
         pbar.set_postfix(

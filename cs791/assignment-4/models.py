@@ -1,3 +1,4 @@
+import torch.nn.functional as F
 from torch import nn
 
 
@@ -21,8 +22,64 @@ class SimpleNN(nn.Module):
 
 
 class CNN(nn.Module):
-    def __init__(self, num_classes=10):
-        super(CNN, self).__init__()
+    def __init__(
+        self,
+        num_classes=10,
+        hidden_size_fc=256,
+        dropout_rate_conv=0.25,
+        dropout_rate_fc=0.5,
+        kernel_size=3,
+    ):
+        super().__init__()
+
+        # --- Block 1 ---
+        # Input: (Batch_Size, 1, 28, 28)
+        self.conv1_1 = nn.Conv2d(1, 32, kernel_size=kernel_size, padding="same")
+        self.bn1_1 = nn.BatchNorm2d(32)
+        self.conv1_2 = nn.Conv2d(32, 32, kernel_size=kernel_size, padding="same")
+        self.bn1_2 = nn.BatchNorm2d(32)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.drop1 = nn.Dropout2d(
+            p=dropout_rate_conv
+        )  # Dropout for 2D spatial features
+        # Output: (Batch_Size, 32, 14, 14)
+
+        # --- Block 2 ---
+        self.conv2_1 = nn.Conv2d(32, 64, kernel_size=kernel_size, padding="same")
+        self.bn2_1 = nn.BatchNorm2d(64)
+        self.conv2_2 = nn.Conv2d(64, 64, kernel_size=kernel_size, padding="same")
+        self.bn2_2 = nn.BatchNorm2d(64)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.drop2 = nn.Dropout2d(p=dropout_rate_conv)
+        # Output: (Batch_Size, 64, 7, 7)
+
+        # --- Classifier ---
+        # Flattened size: 64 channels * 7 height * 7 width = 3136
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(64 * 7 * 7, hidden_size_fc)
+        self.bn_fc1 = nn.BatchNorm1d(hidden_size_fc)  # 1D Batch Norm for Dense layers
+        self.drop_fc1 = nn.Dropout(p=dropout_rate_fc)
+        self.fc2 = nn.Linear(
+            hidden_size_fc, num_classes
+        )  # Output layer (num_classes classes)
 
     def forward(self, x):
-        pass
+        # Block 1
+        x = F.relu(self.bn1_1(self.conv1_1(x)))
+        x = F.relu(self.bn1_2(self.conv1_2(x)))
+        x = self.pool1(x)
+        x = self.drop1(x)
+
+        # Block 2
+        x = F.relu(self.bn2_1(self.conv2_1(x)))
+        x = F.relu(self.bn2_2(self.conv2_2(x)))
+        x = self.pool2(x)
+        x = self.drop2(x)
+
+        # Classifier
+        x = self.flatten(x)
+        x = F.relu(self.bn_fc1(self.fc1(x)))
+        x = self.drop_fc1(x)
+        x = self.fc2(x)  # Output raw logits
+
+        return x
