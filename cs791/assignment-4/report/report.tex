@@ -1,0 +1,248 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Bayesian Optimization for Hyperparameter Tuning in Neural Networks}
+\author{Avdhoot Golekar (23B0060), Geet Sethi (23B2258), Panav Shah (23B3323)}
+
+\begin{document}
+
+\maketitle
+
+\section{Implementation Details}
+
+\subsection{Calculating the Optimal $x_{next}$}
+
+To find the next $x$ to evaluate the blackbox function on, we need to find the argmax over the acquisition function. However, doing so can be infeasible. So we instead randomly sample 1000 (customizable param) points in the $X$ space and evaluate the acquisition function $\alpha$ on all of them and choose the max out of those. This gives us a good approixmation of the best $x$.
+
+\section{Task 1: Simple Neural Network Optimization}
+
+\subsection{Experimental Setup}
+
+The given \texttt{SimpleNN} architecture consists of:
+\begin{itemize}
+    \item Input layer: 784 neurons (28$\times$28 flattened MNIST images)
+    \item Hidden layer: Variable size (100-500 neurons)
+    \item Output layer: 10 neurons (MNIST classes)
+    \item ReLU activation and dropout regularization
+\end{itemize}
+
+The hyperparameter search space for the \texttt{SimpleNN} is as follows:
+\begin{itemize}
+    \item Hidden size: \{100, 200, 300, 400, 500\}
+    \item Epochs: \{1, 2, ..., 10\}
+    \item Learning rate: \(10^{-5}\) to \(10^{-1}\) (log scale, 20 points)
+    \item Batch size: \{16, 32, 64, 128, 256\}
+    \item Dropout rate: 0 to 0.5 (linear scale, 20 points)
+    \item Weight decay: \(10^{-6}\) to \(10^{-2}\) (log scale, 20 points)
+\end{itemize}
+
+\subsection{Results for Different Kernel-Acquisition Combinations}
+
+Table \ref{tab:nn_results} summarizes the results for all six kernel-acquisition function combinations with $N = 25$.
+
+\begin{table}[h]
+\centering
+\caption{Best hyperparameters and validation accuracies for \texttt{SimpleNN} with different kernel-acquisition combinations ($N = 25$)}
+\label{tab:nn_results}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Configuration} & \textbf{Hidden Size} & \textbf{Epochs} & \textbf{Learning Rate} & \textbf{Batch Size} & \textbf{Dropout} & \textbf{Accuracy} \\
+\midrule
+RBF + EI & 500 & 6 & 0.000298 & 32 & 0.474 & 0.9696 \\
+RBF + PI & 500 & 6 & 0.000298 & 32 & 0.474 & 0.9696 \\
+Matern + EI & 400 & 9 & 0.000298 & 32 & 0.447 & 0.9722 \\
+\textbf{Matern + PI} & 400 & 7 & 0.000785 & 32 & 0.500 & \textbf{0.9743} \\
+RQ + EI & 200 & 7 & 0.00207 & 128 & 0.395 & 0.9725 \\
+RQ + PI & 200 & 7 & 0.00207 & 128 & 0.395 & 0.9725 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Observations}
+
+\begin{enumerate}
+    \item \textbf{Matern + PI} achieved the highest validation accuracy (0.9743), followed closely by Rational Quadratic configurations (0.9725) and Matern + EI (0.9722).
+    \item \textbf{RBF kernel} performed slightly worse (0.9696), suggesting the smoother \texttt{RBF} kernel may not capture the hyperparameter landscape as effectively as the \texttt{Matern} kernel.
+    \item \textbf{Acquisition function performance}: For Matern kernel, PI outperformed EI (0.9743 vs. 0.9722), while for RQ kernel, both performed equally (0.9725). This suggests that the choice between EI and PI depends on the kernel function.
+\end{enumerate}
+
+\subsection{Progression Plots}
+
+Figure \ref{fig:nn_progression} shows the validation accuracy progression for all six configurations. The plots reveal:
+
+\begin{itemize}
+    \item \textbf{RBF kernel}: Steady but slower convergence, reaching plateau around iteration 12-15
+    \item \textbf{Matern kernel}: Faster convergence with EI, achieving high accuracy earlier
+    \item \textbf{Rational Quadratic kernel}: Similar performance with both acquisition functions
+    \item All configurations show improvement from the initial random sampling phase (iterations 1-10)
+\end{itemize}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.45\textwidth]{images/model_nn_kernel_rbf_acquisition_function_ei_max_budget_25_init_points_10_progression.png}
+\includegraphics[width=0.45\textwidth]{images/model_nn_kernel_rbf_acquisition_function_pi_max_budget_25_init_points_10_progression.png}
+\\
+\includegraphics[width=0.45\textwidth]{images/model_nn_kernel_matern_acquisition_function_ei_max_budget_25_init_points_10_progression.png}
+\includegraphics[width=0.45\textwidth]{images/model_nn_kernel_matern_acquisition_function_pi_max_budget_25_init_points_10_progression.png}
+\\
+\includegraphics[width=0.45\textwidth]{images/model_nn_kernel_rational_quadratic_acquisition_function_ei_max_budget_25_init_points_10_progression.png}
+\includegraphics[width=0.45\textwidth]{images/model_nn_kernel_rational_quadratic_acquisition_function_pi_max_budget_25_init_points_10_progression.png}
+\caption{Validation accuracy progression for \texttt{SimpleNN} with different kernel-acquisition combinations ($N = 25$). Top row: \texttt{RBF} kernel; Middle row: \texttt{Matern} kernel; Bottom row: \texttt{Rational Quadratic} kernel. Left column: Expected Improvement; Right column: Probability of Improvement.}
+\label{fig:nn_progression}
+\end{figure}
+
+\subsection{Budget Analysis}
+
+Using the best configuration (Matern + PI), we analyzed the impact of budget $N \in \{15, 25, 50\}$. Table \ref{tab:budget_analysis} shows the results.
+
+\begin{table}[h]
+\centering
+\caption{Impact of budget $N$ on \texttt{SimpleNN} optimization (Matern + PI)}
+\label{tab:budget_analysis}
+\begin{tabular}{cc}
+\toprule
+\textbf{Budget $N$} & \textbf{Best Validation Accuracy} \\
+\midrule
+15 & 0.9722 \\
+25 & 0.9743 \\
+50 & 0.9771 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Analysis}
+
+\begin{enumerate}
+    \item \textbf{Progressive improvement}: The accuracy improved from 0.9722 ($N = 15$) to 0.9743 ($N = 25$) to 0.9771 ($N = 50$), showing consistent gains with more iterations.
+    \item \textbf{Computational trade-off}: While $N = 50$ yields better results, it requires twice the computational cost and the performance gain is not significant. For this problem, $N = 25$ provides a good balance between performance and computational efficiency.
+\end{enumerate}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.3\textwidth]{images/model_nn_kernel_matern_acquisition_function_pi_max_budget_15_init_points_10_progression.png}
+\includegraphics[width=0.3\textwidth]{images/model_nn_kernel_matern_acquisition_function_pi_max_budget_25_init_points_10_progression.png}
+\includegraphics[width=0.3\textwidth]{images/model_nn_kernel_matern_acquisition_function_pi_max_budget_50_init_points_10_progression.png}
+\caption{Validation accuracy progression for different budgets using Matern + PI. Left: $N = 15$, Middle: $N = 25$, Right: $N = 50$.}
+\label{fig:budget_comparison}
+\end{figure}
+
+\section{Task 2: Convolutional Neural Network Optimization}
+
+\subsection{Model Architecture}
+
+The \texttt{CNN} architecture we came up with is as follows:
+
+\begin{itemize}
+    \item \textbf{Block 1}: Two convolutional layers (32 filters each), BatchNorm, MaxPooling, Dropout
+    \item \textbf{Block 2}: Two convolutional layers (64 filters each), BatchNorm, MaxPooling, Dropout
+    \item \textbf{Classifier}: Fully connected layer (variable size), BatchNorm, Dropout, output layer
+\end{itemize}
+
+Key features:
+\begin{itemize}
+    \item Batch normalization after each convolutional and fully connected layer
+    \item Separate dropout rates for convolutional and fully connected layers
+    \item Configurable kernel size for convolutional layers
+    \item ReLU activation functions
+\end{itemize}
+
+\subsection{Hyperparameter Search Space}
+
+The CNN hyperparameter search space includes:
+\begin{itemize}
+    \item Hidden size FC: \{100, 200, 300, 400, 500\}
+    \item Epochs: \{1, 2, ..., 10\}
+    \item Learning rate: $10^{-5}$ to $10^{-1}$ (log scale, 20 points)
+    \item Batch size: \{16, 32, 64, 128, 256\}
+    \item Weight decay: $10^{-6}$ to $10^{-2}$ (log scale, 20 points)
+    \item Dropout rate (conv): 0 to 0.5 (linear scale, 20 points)
+    \item Dropout rate (FC): 0 to 0.5 (linear scale, 20 points)
+    \item Kernel size: \{3, 5, 7\}
+\end{itemize}
+
+\subsection{Results}
+
+Table \ref{tab:cnn_results} shows the best hyperparameters found for the \texttt{CNN} model across different kernel-acquisition combinations with $N = 50$.
+
+\begin{table}[h]
+\centering
+\caption{Best hyperparameters for \texttt{CNN} with different kernel-acquisition combinations ($N = 50$)}
+\label{tab:cnn_results}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Configuration} & \textbf{Best Validation Accuracy} \\
+\midrule
+RBF + EI & 0.9936 \\
+RBF + PI & 0.9936 \\
+\textbf{Matern + EI} & \textbf{0.9941} \\
+Matern + PI & 0.9940 \\
+RQ + EI & 0.9940 \\
+RQ + PI & 0.9940 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The hyperparameters for the best configuration (\textbf{Matern + EI}) are as follows:
+\begin{itemize}
+    \item Hidden size FC: 500
+    \item Epochs: 8
+    \item Learning rate: 0.000070
+    \item Batch size: 32
+    \item Dropout rate (FC): 0.5
+    \item Dropout rate (conv): 0.342
+    \item Kernel size: 5
+\end{itemize}
+
+\subsection{Progression Analysis}
+
+Figure \ref{fig:cnn_progression} shows the validation accuracy progression for \texttt{CNN} optimization. Key observations:
+
+\begin{itemize}
+    \item \textbf{Stable performance}: The CNN achieves high accuracy (above 0.99) very early in the optimization process, suggesting that the CNN architecture is well-suited for the MNIST dataset and that it is robust to hyperparameter variations and hence has less variance in performance across different hyperparameter configurations.
+    \item \textbf{Matern + EI advantage}: Shows slightly better final performance and more consistent improvement over iterations.
+\end{itemize}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.45\textwidth]{images/model_cnn_kernel_rbf_acquisition_function_ei_max_budget_50_init_points_10_progression.png}
+\includegraphics[width=0.45\textwidth]{images/model_cnn_kernel_rbf_acquisition_function_pi_max_budget_50_init_points_10_progression.png}
+\\
+\includegraphics[width=0.45\textwidth]{images/model_cnn_kernel_matern_acquisition_function_ei_max_budget_50_init_points_10_progression.png}
+\includegraphics[width=0.45\textwidth]{images/model_cnn_kernel_matern_acquisition_function_pi_max_budget_50_init_points_10_progression.png}
+\\
+\includegraphics[width=0.45\textwidth]{images/model_cnn_kernel_rational_quadratic_acquisition_function_ei_max_budget_50_init_points_10_progression.png}
+\includegraphics[width=0.45\textwidth]{images/model_cnn_kernel_rational_quadratic_acquisition_function_pi_max_budget_50_init_points_10_progression.png}
+\caption{Validation accuracy progression for \texttt{CNN} with different kernel-acquisition combinations ($N = 50$). Top row: \texttt{RBF} kernel; Middle row: \texttt{Matern} kernel; Bottom row: \texttt{Rational Quadratic} kernel. Left column: Expected Improvement; Right column: Probability of Improvement.}
+\label{fig:cnn_progression}
+\end{figure}
+
+\section{Discussion and Conclusions}
+
+\subsection{Key Findings}
+
+\begin{enumerate}
+    \item \textbf{Kernel selection matters}: The \texttt{Matern} kernel consistently outperformed the \texttt{RBF} and \texttt{Rational Quadratic} kernels, likely because it allows for less smooth functions and better captures the hyperparameter landscape.
+    
+    \item \textbf{Acquisition function choice}: For SimpleNN, Probability of Improvement with Matern kernel performed best, while for CNN, Expected Improvement with Matern kernel achieved the highest accuracy.
+    
+    \item \textbf{Budget impact}: Increasing the optimization budget from 25 to 50 iterations showed meaningful improvements, indicating that more exploration is beneficial, especially for complex search spaces.
+    
+    \item \textbf{Architecture matters}: The CNN significantly outperformed the SimpleNN (99.41\% vs. 97.43\% best validation accuracy), demonstrating that convolutional architectures are better suited for image classification tasks.
+    
+    \item \textbf{Hyperparameter patterns}: Optimal hyperparameters show consistent patterns:
+       \begin{itemize}
+           \item Moderate learning rates (\(10^{-4}\) to \(10^{-3}\))
+           \item Moderate to high dropout for regularization
+           \item Small to moderate batch sizes (32-128)
+           \item Appropriate network sizes for the task complexity
+       \end{itemize}
+\end{enumerate}
+
+\end{document}
+
