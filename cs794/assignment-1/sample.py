@@ -4,10 +4,14 @@ Sample from a trained model
 
 import os
 import pickle
+import sys
+import time
 from contextlib import nullcontext
-import torch
+
 import tiktoken
-from model import GPTConfig, GPT
+import torch
+
+from model import GPT, GPTConfig
 
 # -----------------------------------------------------------------------------
 init_from = (
@@ -66,6 +70,9 @@ if init_from == "resume":
 elif init_from.startswith("gpt2"):
     # init from a given GPT-2 model
     model = GPT.from_pretrained(init_from, dict(dropout=0.0))
+else:
+    print(f"Invalid init_from: {init_from}", file=sys.stderr)
+    exit(1)
 
 model.eval()
 model.to(device)
@@ -107,6 +114,8 @@ x = torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...]
 with torch.no_grad():
     with ctx:
         for k in range(num_samples):
+            time_start = time.time()
             y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k)
             print(decode(y[0].tolist()))
             print("---------------")
+            print(f"Time taken: {time.time() - time_start:.2f} seconds")
