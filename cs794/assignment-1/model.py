@@ -7,8 +7,8 @@ https://github.com/openai/gpt-2/blob/master/src/model.py
 https://github.com/huggingface/transformers/blob/main/src/transformers/models/gpt2/modeling_gpt2.py
 """
 
-import math
 import inspect
+import math
 from dataclasses import dataclass
 
 import torch
@@ -55,6 +55,9 @@ class CausalSelfAttention(nn.Module):
                     1, 1, config.block_size, config.block_size
                 ),
             )
+        self.use_kv_cache = config.use_kv_cache
+        self.k_cache = None
+        self.v_cache = None
 
     def forward(self, x):
         B, T, C = (
@@ -62,11 +65,36 @@ class CausalSelfAttention(nn.Module):
         )  # batch size, sequence length, embedding dimensionality (n_embd)
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(
+        used_cache = False
+        if self.use_kv_cache and self.k_cache is not None and self.v_cache is not None:
+            q, k, v = self.c_attn(x[:, -1:]).split(
+                self.n_embd, dim=2
+            )  # 3 * (B, nh, 1, hs)
+
+            self.k_cache[:, self.cache_len] = k.squeeze(-2)
+            self.v_cache[:, self.cache_len] = v.squeeze(-2)
+            self.cache_len += 1
+
+            k = self.k_cache[:, : self.cache_len]
+            v = self.v_cache[:, : self.cache_len]
+            used_cache = True
+        else:
+            q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
+
+            if self.use_kv_cache:
+                # Initialize k and v caches
+                # 500 is the maximum sequence length we allow
+                self.k_cache = torch.empty(B, 500, C, device=x.device)
+                self.v_cache = torch.empty_like(self.k_cache)
+
+                self.cache_len = T
+                self.k_cache[:, : self.cache_len] = k
+                self.v_cache[:, : self.cache_len] = v
+
+        q = q.view(B, 1 if used_cache else T, self.n_head, C // self.n_head).transpose(
             1, 2
-        )  # (B, nh, T, hs)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(
+        )  # (B, nh, 1 if used_cache else T, hs)
+        k = k.view(B, T, self.n_head, C // self.n_head).transpose(
             1, 2
         )  # (B, nh, T, hs)
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(
@@ -82,17 +110,20 @@ class CausalSelfAttention(nn.Module):
                 v,
                 attn_mask=None,
                 dropout_p=self.dropout if self.training else 0,
-                is_causal=True,
+                # Don't apply causal mask when we're just processing the last token
+                is_causal=not used_cache,
             )
         else:
             # manual implementation of attention
             att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-            att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
+            # Don't apply causal mask when we're just processing the last token
+            if not used_cache:
+                att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
             att = F.softmax(att, dim=-1)
             att = self.attn_dropout(att)
             y = att @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
         y = (
-            y.transpose(1, 2).contiguous().view(B, T, C)
+            y.transpose(1, 2).contiguous().view(B, 1 if used_cache else T, C)
         )  # re-assemble all head outputs side by side
 
         # output projection
@@ -139,6 +170,8 @@ class GPTConfig:
     n_embd: int = 768
     dropout: float = 0.0
     bias: bool = True  # True: bias in Linears and LayerNorms, like GPT-2. False: a bit better and faster
+
+    use_kv_cache: bool = False
 
 
 class GPT(nn.Module):
@@ -246,8 +279,8 @@ class GPT(nn.Module):
     def from_pretrained(cls, model_type, override_args=None):
         assert model_type in {"gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"}
         override_args = override_args or {}  # default to empty dict
-        # only dropout can be overridden see more notes below
-        assert all(k == "dropout" for k in override_args)
+        # only dropout and use_kv_cache can be overridden see more notes below
+        assert all(k in ["dropout", "use_kv_cache"] for k in override_args)
         from transformers import GPT2LMHeadModel
 
         print("loading weights from pretrained gpt: %s" % model_type)

@@ -4,10 +4,12 @@ Sample from a trained model
 
 import os
 import pickle
+import random
 import sys
 import time
 from contextlib import nullcontext
 
+import numpy as np
 import tiktoken
 import torch
 
@@ -35,11 +37,17 @@ dtype = (
     else "float16"
 )  # 'float32' or 'bfloat16' or 'float16'
 compile = False  # use PyTorch 2.0 to compile the model to be faster
+use_kv_cache = True
 exec(open("configurator.py").read())  # overrides from command line or config file
 # -----------------------------------------------------------------------------
-
+random.seed(seed)
+os.environ["PYTHONHASHSEED"] = str(seed)
+np.random.seed(seed)
 torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
 torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
 device_type = "cuda" if "cuda" in device else "cpu"  # for later use in torch.autocast
@@ -69,7 +77,7 @@ if init_from == "resume":
     model.load_state_dict(state_dict)
 elif init_from.startswith("gpt2"):
     # init from a given GPT-2 model
-    model = GPT.from_pretrained(init_from, dict(dropout=0.0))
+    model = GPT.from_pretrained(init_from, dict(dropout=0.0, use_kv_cache=use_kv_cache))
 else:
     print(f"Invalid init_from: {init_from}", file=sys.stderr)
     exit(1)
