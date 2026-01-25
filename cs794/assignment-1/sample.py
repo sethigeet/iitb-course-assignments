@@ -77,7 +77,7 @@ if init_from == "resume":
     model.load_state_dict(state_dict)
 elif init_from.startswith("gpt2"):
     # init from a given GPT-2 model
-    model = GPT.from_pretrained(init_from, dict(dropout=0.0, use_kv_cache=use_kv_cache))
+    model = GPT.from_pretrained(init_from, dict(use_kv_cache=use_kv_cache))
 else:
     print(f"Invalid init_from: {init_from}", file=sys.stderr)
     exit(1)
