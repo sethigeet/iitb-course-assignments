@@ -71,32 +71,67 @@ class CausalSelfAttention(nn.Module):
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
 
+        T_cached = 0
         if self.use_kv_cache and kv_cache is not None:
             assert len(kv_cache) == 2, "kv_cache must be a tuple of (k, v)"
-            k = torch.cat([kv_cache[0], k], dim=2)  # (B, nh, T + seq_len, hs)
-            v = torch.cat([kv_cache[1], v], dim=2)  # (B, nh, T + seq_len, hs)
+            T_cached = kv_cache[0].shape[2]
+            k = torch.cat([kv_cache[0], k], dim=2)  # (B, nh, T_cached + T, hs)
+            v = torch.cat([kv_cache[1], v], dim=2)  # (B, nh, T_cached + T, hs)
 
-        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T_cached + T) -> (B, nh, T, T_cached + T)
         if self.flash:
             # efficient attention using Flash Attention CUDA kernels
-            y = torch.nn.functional.scaled_dot_product_attention(
-                q,
-                k,
-                v,
-                attn_mask=None,
-                dropout_p=self.dropout if self.training else 0,
-                # Don't apply causal mask when we're just processing the last token
-                is_causal=kv_cache is None,
-            )
+            if T_cached == 0 or T == 1:
+                y = torch.nn.functional.scaled_dot_product_attention(
+                    q,
+                    k,
+                    v,
+                    attn_mask=None,
+                    dropout_p=self.dropout if self.training else 0,
+                    is_causal=T_cached == 0,
+                )
+            else:
+                # Multiple new tokens with incomplete cache - need custom causal mask
+                # Query at position i (relative) corresponds to absolute position T_cached + i
+                # It can attend to all positions 0 to T_cached + i (inclusive)
+                # Mask shape: (T, T_cached + T)
+                device = x.device
+                i_idx = torch.arange(T, device=device).view(T, 1)
+                j_idx = torch.arange(T_cached + T, device=device).view(1, T_cached + T)
+                # Create float mask: 0 where allowed, -inf where blocked
+                # Block attention where j > T_cached + i
+                attn_mask = torch.zeros(T, T_cached + T, device=device, dtype=q.dtype)
+                attn_mask = attn_mask.masked_fill(
+                    j_idx > T_cached + i_idx, float("-inf")
+                )
+                y = torch.nn.functional.scaled_dot_product_attention(
+                    q,
+                    k,
+                    v,
+                    attn_mask=attn_mask,
+                    dropout_p=self.dropout if self.training else 0,
+                    is_causal=False,
+                )
         else:
             # manual implementation of attention
             att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-            # Don't apply causal mask when we're just processing the last token
-            if kv_cache is None:
+            if T_cached == 0:
+                # No cache, use full causal mask from pre-computed buffer
                 att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
+            elif T > 1:
+                # Multiple new tokens with incomplete cache - need custom causal mask
+                device = x.device
+                i_idx = torch.arange(T, device=device).view(T, 1)
+                j_idx = torch.arange(T_cached + T, device=device).view(1, T_cached + T)
+                # Mask where j > T_cached + i (positions that should not be attended to)
+                causal_mask = j_idx > T_cached + i_idx
+                att = att.masked_fill(
+                    causal_mask.unsqueeze(0).unsqueeze(0), float("-inf")
+                )
+            # If T_cached > 0 and T == 1, no mask needed (single token can attend to all previous)
             att = F.softmax(att, dim=-1)
             att = self.attn_dropout(att)
-            y = att @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+            y = att @ v  # (B, nh, T, T_total) x (B, nh, T_total, hs) -> (B, nh, T, hs)
         y = (
             y.transpose(1, 2).contiguous().view(B, T, C)
         )  # re-assemble all head outputs side by side
