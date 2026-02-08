@@ -426,32 +426,77 @@ class GPT(nn.Module):
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
-        kv_cache = None
-        for _ in range(max_new_tokens):
-            # if the sequence context is growing too long we must crop it at block_size
-            idx_cond = (
-                idx
-                if idx.size(1) <= self.config.block_size
-                else idx[:, -self.config.block_size :]
-            )
-            start_pos = 0
-            # if we're not on the first token, we have the kv_cache warmed, so we don't need to pass the entire sequence
-            if self.config.use_kv_cache and kv_cache is not None:
-                start_pos = idx_cond.size(1) - 1
-                idx_cond = idx_cond[:, start_pos:]
-            # forward the model to get the logits for the index in the sequence
-            logits, _, kv_cache = self(idx_cond, kv_cache=kv_cache, start_pos=start_pos)
-            # pluck the logits at the final step and scale by desired temperature
-            logits = logits[:, -1, :] / temperature
-            # optionally crop the logits to only the top k options
-            if top_k is not None:
-                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = -float("Inf")
-            # apply softmax to convert logits to (normalized) probabilities
-            probs = F.softmax(logits, dim=-1)
-            # sample from the distribution
-            idx_next = torch.multinomial(probs, num_samples=1)
-            # append sampled index to the running sequence and continue
-            idx = torch.cat((idx, idx_next), dim=1)
 
-        return idx
+        # Prefill stage
+        if self.config.use_kv_cache:
+            _, _, kv_cache_prefill = self(idx[0:1])
+
+            kv_cache = {}
+            curr = kv_cache
+            for i in range(len(idx[0])):
+                curr[idx[0, i].item()] = {
+                    "__cache": [
+                        (k[:, :, : i + 1], v[:, :, : i + 1])
+                        for (k, v) in kv_cache_prefill
+                    ]
+                }
+                curr = curr[idx[0, i].item()]
+        else:
+            kv_cache = {}
+
+        # Generation stage
+        result = []
+        for b in range(idx.shape[0]):
+            idx_b = idx[b : b + 1]
+            if self.config.use_kv_cache:
+                curr = kv_cache
+                T_cached = 0
+                for i in range(len(idx[b]) - 1):
+                    if curr.get(idx_b[0, i].item()) is None:
+                        break
+                    curr = curr[idx_b[0, i].item()]
+                    T_cached += 1
+            else:
+                T_cached = 0
+                curr = {}
+
+            for _ in range(max_new_tokens):
+                # if the sequence context is growing too long we must crop it at block_size
+                idx_cond = (
+                    idx_b
+                    if idx_b.size(1) <= self.config.block_size
+                    else idx_b[:, -self.config.block_size :]
+                )
+                start_pos = 0
+                # if we're not on the first token, we have the kv_cache warmed, so we don't need to pass the entire sequence
+                if self.config.use_kv_cache and curr.get("__cache") is not None:
+                    start_pos = T_cached
+                    idx_cond = idx_cond[:, start_pos:]
+                # forward the model to get the logits for the index in the sequence
+                logits, _, kv_cache_new = self(
+                    idx_cond,
+                    kv_cache=curr.get("__cache") if curr is not None else None,
+                    start_pos=start_pos,
+                )
+                # pluck the logits at the final step and scale by desired temperature
+                logits = logits[:, -1, :] / temperature
+                # optionally crop the logits to only the top k options
+                if top_k is not None:
+                    v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                    logits[logits < v[:, [-1]]] = -float("Inf")
+                # apply softmax to convert logits to (normalized) probabilities
+                probs = F.softmax(logits, dim=-1)
+                # sample from the distribution
+                idx_next = torch.multinomial(probs, num_samples=1)
+                # append sampled index to the running sequence and continue
+                idx_b = torch.cat((idx_b, idx_next), dim=1)
+
+                # Update the kv_cache
+                if self.config.use_kv_cache:
+                    curr[idx_next.item()] = {"__cache": kv_cache_new}
+                    curr = curr[idx_next.item()]
+                    T_cached += 1
+
+            result.append(idx_b[0])
+
+        return result

@@ -115,8 +115,9 @@ else:
 if start.startswith("FILE:"):
     with open(start[5:], "r", encoding="utf-8") as f:
         start = f.read()
-start_ids = encode(start)
-x = torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...]
+
+start_ids = [encode(s) for s in start.split(";")]
+x = torch.tensor(start_ids, dtype=torch.long, device=device)
 
 # run generation
 with torch.no_grad():
@@ -124,6 +125,7 @@ with torch.no_grad():
         for k in range(num_samples):
             time_start = time.time()
             y = model.generate(x, max_new_tokens, temperature=temperature, top_k=top_k)
-            print(decode(y[0].tolist()))
-            print("---------------")
+            for y_i in y:
+                print(decode(y_i.tolist()))
+                print("---------------")
             print(f"Time taken: {time.time() - time_start:.2f} seconds")
