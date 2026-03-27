@@ -12,7 +12,7 @@ REMOTE="sutra"
 REMOTE_DIR="code/cuda-kernels"
 
 scp "$source_file" "$REMOTE:~/$REMOTE_DIR/$source_file"
-ssh "$REMOTE" "cd $REMOTE_DIR && /usr/local/cuda/bin/nvcc -O3 -lineinfo -o $bin_name $source_file"
+ssh "$REMOTE" "cd $REMOTE_DIR && /usr/local/cuda/bin/nvcc -O3 -lineinfo -o $bin_name $source_file -lcublas"
 
 if [ "$2" = "ncu" ]; then
     echo "=== Correctness Tests (unprofiled) ==="

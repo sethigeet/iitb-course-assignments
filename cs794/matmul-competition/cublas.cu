@@ -3,9 +3,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <cuda_runtime.h>
+#include <cublas_v2.h>
 #include <vector>
 
-// ─── Error-checking macro ────────────────────────────────────────────────────
+// ─── Error-checking macros ────────────────────────────────────────────────────
 #define CUDA_CHECK(call)                                                       \
   do {                                                                         \
     cudaError_t err = (call);                                                  \
@@ -16,96 +17,23 @@
     }                                                                          \
   } while (0)
 
+#define CUBLAS_CHECK(call)                                                     \
+  do {                                                                         \
+    cublasStatus_t status = (call);                                            \
+    if (status != CUBLAS_STATUS_SUCCESS) {                                     \
+      fprintf(stderr, "cuBLAS error at %s:%d  status=%d\n", __FILE__,          \
+              __LINE__, static_cast<int>(status));                             \
+      exit(EXIT_FAILURE);                                                      \
+    }                                                                          \
+  } while (0)
+
 /* ============================================================
    Edit ONLY this section.
    ============================================================ */
 
-// 2D block tiling + per-thread register blocking.
-// Each block computes a TILE x TILE output tile.
-// Each thread computes an R x R sub-tile in registers.
-constexpr int TILE = 64;
-constexpr int R = 4;
-
-template <int REG_TILE>
-__global__ void matmul_kernel_2d_block_tiled(const float *__restrict__ A,
-                                             const float *__restrict__ B,
-                                             float *__restrict__ C, int N) {
-  extern __shared__ float smem[];
-  float *As = smem;
-  float *Bs = smem + TILE * TILE;
-
-  const int tx = threadIdx.x;
-  const int ty = threadIdx.y;
-
-  const int local_row_base = ty * REG_TILE;
-  const int local_col_base = tx * REG_TILE;
-  const int row_base = blockIdx.y * TILE + local_row_base;
-  const int col_base = blockIdx.x * TILE + local_col_base;
-
-  float reg[REG_TILE][REG_TILE];
-#pragma unroll
-  for (int i = 0; i < REG_TILE; ++i) {
-#pragma unroll
-    for (int j = 0; j < REG_TILE; ++j) {
-      reg[i][j] = 0.0f;
-    }
-  }
-
-  const int num_tiles = (N + TILE - 1) / TILE;
-
-  for (int t = 0; t < num_tiles; ++t) {
-    // Cooperative load of A and B tiles: each thread loads REG_TILE x REG_TILE.
-#pragma unroll
-    for (int i = 0; i < REG_TILE; ++i) {
-#pragma unroll
-      for (int j = 0; j < REG_TILE; ++j) {
-        const int a_row = row_base + i;
-        const int a_col = t * TILE + local_col_base + j;
-        As[(local_row_base + i) * TILE + (local_col_base + j)] =
-            (a_row < N && a_col < N) ? A[a_row * N + a_col] : 0.0f;
-
-        const int b_row = t * TILE + local_row_base + i;
-        const int b_col = col_base + j;
-        Bs[(local_row_base + i) * TILE + (local_col_base + j)] =
-            (b_row < N && b_col < N) ? B[b_row * N + b_col] : 0.0f;
-      }
-    }
-
-    __syncthreads();
-
-// Multiply the shared-memory tiles into register accumulators.
-#pragma unroll
-    for (int k = 0; k < TILE; ++k) {
-#pragma unroll
-      for (int i = 0; i < REG_TILE; ++i) {
-        const float a_val = As[(local_row_base + i) * TILE + k];
-#pragma unroll
-        for (int j = 0; j < REG_TILE; ++j) {
-          reg[i][j] += a_val * Bs[k * TILE + (local_col_base + j)];
-        }
-      }
-    }
-
-    __syncthreads();
-  }
-
-// Write back this thread's REG_TILE x REG_TILE output tile.
-#pragma unroll
-  for (int i = 0; i < REG_TILE; ++i) {
-#pragma unroll
-    for (int j = 0; j < REG_TILE; ++j) {
-      const int out_row = row_base + i;
-      const int out_col = col_base + j;
-      if (out_row < N && out_col < N) {
-        C[out_row * N + out_col] = reg[i][j];
-      }
-    }
-  }
-}
-
 /**
  * @brief Launch wrapper — allocate device memory, copy data,
- *        run your kernel(s), copy result back. You aren't allowed to change
+ *        run cuBLAS SGEMM, copy result back. You aren't allowed to change
  * this function signature.
  *
  * @param N    Matrix dimension (N x N).  Always a power of 2.
@@ -117,32 +45,30 @@ __global__ void matmul_kernel_2d_block_tiled(const float *__restrict__ A,
 void matmul_gpu(int N, const float *A_h, const float *B_h, float *C_h) {
   size_t bytes = (size_t)N * N * sizeof(float);
 
-  // ── Allocate device buffers ───────────────────────────────
   float *A_d, *B_d, *C_d;
   CUDA_CHECK(cudaMalloc(&A_d, bytes));
   CUDA_CHECK(cudaMalloc(&B_d, bytes));
   CUDA_CHECK(cudaMalloc(&C_d, bytes));
 
-  // ── Transfer inputs to device ─────────────────────────────
   CUDA_CHECK(cudaMemcpy(A_d, A_h, bytes, cudaMemcpyHostToDevice));
   CUDA_CHECK(cudaMemcpy(B_d, B_h, bytes, cudaMemcpyHostToDevice));
 
-  {
-    dim3 block(TILE / R, TILE / R);
-    dim3 grid((N + TILE - 1) / TILE, (N + TILE - 1) / TILE);
-    size_t shared_bytes = 2 * TILE * TILE * sizeof(float);
+  cublasHandle_t handle;
+  CUBLAS_CHECK(cublasCreate(&handle));
 
-    matmul_kernel_2d_block_tiled<R>
-        <<<grid, block, shared_bytes>>>(A_d, B_d, C_d, N);
-    CUDA_CHECK(cudaGetLastError());
-  }
+  const float alpha = 1.0f;
+  const float beta = 0.0f;
+
+  // Row-major C = A * B can be computed as column-major C^T = B^T * A^T.
+  // With row-major buffers reinterpreted as column-major, this becomes:
+  // C_col = B_col * A_col.
+  CUBLAS_CHECK(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, N, N, &alpha,
+                           B_d, N, A_d, N, &beta, C_d, N));
 
   CUDA_CHECK(cudaDeviceSynchronize());
-
-  // ── Copy result back to host ──────────────────────────────
   CUDA_CHECK(cudaMemcpy(C_h, C_d, bytes, cudaMemcpyDeviceToHost));
 
-  // ── Free device memory ────────────────────────────────────
+  CUBLAS_CHECK(cublasDestroy(handle));
   CUDA_CHECK(cudaFree(A_d));
   CUDA_CHECK(cudaFree(B_d));
   CUDA_CHECK(cudaFree(C_d));
