@@ -11,7 +11,13 @@ source_file="$1"
 bin_name="${1%.cu}"
 REMOTE="sutra"
 REMOTE_DIR="code/cuda-kernels"
-NVCC_FLAGS="-O3 -lineinfo -arch=native"
+NVCC_FLAGS="-O3 -lineinfo"
+
+case "$source_file" in
+    *tensor*.cu)
+        NVCC_FLAGS="$NVCC_FLAGS -arch=native"
+        ;;
+esac
 
 if [ "$2" = "ncu" ]; then
     MODE="ncu"

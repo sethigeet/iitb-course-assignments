@@ -20,7 +20,7 @@
 
 ## Build Notes
 
-- `run.sh` now compiles with `nvcc -arch=native`, so the same source should build on both Ada GPUs such as the RTX A6000 Ada (`sm_89`) and newer GPUs such as the RTX 5060 Ti in this workspace.
+- `run.sh` now compiles tensor-core kernels with `nvcc -arch=native`, while the earlier SIMT kernels stay on `-O3 -lineinfo`; on the RTX 5060 Ti in this workspace, forcing native codegen hurt `v3_vectorized_loads.cu` and `v5_3d_tiling.cu` by increasing register pressure and lowering occupancy.
 - `run.sh` also accepts an optional benchmark size as a positional argument: `./run.sh file.cu 32768` or `./run.sh file.cu ncu 32768`.
 
 ## NCU Results Summary
@@ -32,10 +32,10 @@
 | `starter.cu`                        | 104.953              | 1309.52  | 8.72%               |
 | `v1_1d_tiling.cu`                   | 88.803               | 1547.68  | 10.31%              |
 | `v2_2d_tiling.cu`                   | 16.877               | 8143.73  | 54.23%              |
-| `v3_vectorized_loads.cu`            | 13.080               | 10507.57 | 69.98%              |
+| `v3_vectorized_loads.cu`            | 13.147               | 10454.28 | 69.62%              |
 | `v3.2_double_buffered.cu`           | 14.870               | 9242.70  | 61.55%              |
 | `v4_bank_conflicts.cu`              | 13.600               | 10105.81 | 67.30%              |
-| `v5_3d_tiling.cu`                   | 13.483               | 10193.25 | 67.89%              |
+| `v5_3d_tiling.cu`                   | 13.477               | 10198.29 | 67.92%              |
 | `v5.2_3d_tiling_double_buffered.cu` | 24.643               | 5577.13  | 37.14%              |
 | `v6_tensor_cores.cu`                | 105.997              | 1296.63  | 8.64%               |
 | `v7_tensor_core_1d_tiling.cu`       | 24.547               | 5599.09  | 37.29%              |
@@ -46,9 +46,9 @@
 
 | Version                              | Avg Kernel Time (ms) | GFLOPS   | Perf vs `cublas.cu` |
 | ------------------------------------ | -------------------- | -------- | ------------------- |
-| `v3_vectorized_loads.cu`             | 12973.333            | 5424.11  | 33.40%              |
+| `v3_vectorized_loads.cu`             | 6856.667             | 10262.82 | 63.20%              |
 | `v3.2_double_buffered.cu`            | 7580.000             | 9283.48  | 57.17%              |
-| `v5_3d_tiling.cu`                    | 10603.333            | 6636.47  | 40.87%              |
+| `v5_3d_tiling.cu`                    | 6913.333             | 10178.70 | 62.68%              |
 | `v5.2_3d_tiling_double_buffered.cu`  | 12820.000            | 5488.98  | 33.80%              |
 | `v9_tensor_core_multistage.cu`       | 7410.000             | 9496.46  | 58.48%              |
 | `v10_tensor_core_double_buffered.cu` | 10260.000            | 6858.55  | 42.24%              |
