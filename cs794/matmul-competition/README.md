@@ -7,6 +7,7 @@
 - `v1_1d_tiling.cu`: Introduces shared-memory tiling (`TILE=32`) with a 1D thread mapping, reducing redundant global-memory loads and improving data reuse.
 - `v2_2d_tiling.cu`: Moves to 2D block tiling with per-thread register blocking (`R=4`) plus shared-memory staging, increasing arithmetic intensity and reducing memory traffic further.
 - `v3_vectorized_loads.cu`: Adds vectorized `float4` cooperative loads/stores for global-memory transfers in the 2D tiled + register-blocked kernel, improving memory throughput.
+- `v4_bank_conflicts.cu`: Pads each shared-memory tile row with one extra column to avoid shared-memory bank conflicts during the compute phase.
 
 ## NCU Results Summary
 
@@ -16,4 +17,5 @@
 | `v1_1d_tiling.cu`        | 88.803               | 1547.68  | 10.31%              |
 | `v2_2d_tiling.cu`        | 16.877               | 8143.73  | 54.23%              |
 | `v3_vectorized_loads.cu` | 13.080               | 10507.57 | 69.98%              |
+| `v4_bank_conflicts.cu`   | 26.600               | 5166.88  | 34.41%              |
 | `cublas.cu`              | 9.153                | 15015.18 | 100.00%             |
