@@ -1,8 +1,9 @@
 #!/bin/sh
 
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <source_file.cu> [ncu]"
-    echo "  ncu  - profile kernel with NVIDIA Nsight Compute"
+    echo "Usage: $0 <source_file.cu> [ncu] [benchmark_n]"
+    echo "  ncu         - profile kernel with NVIDIA Nsight Compute"
+    echo "  benchmark_n - optional benchmark matrix size (default: 4096)"
     exit 1
 fi
 
@@ -10,11 +11,20 @@ source_file="$1"
 bin_name="${1%.cu}"
 REMOTE="sutra"
 REMOTE_DIR="code/cuda-kernels"
-
-scp "$source_file" "$REMOTE:~/$REMOTE_DIR/$source_file"
-ssh "$REMOTE" "cd $REMOTE_DIR && /usr/local/cuda/bin/nvcc -O3 -lineinfo -o $bin_name $source_file -lcublas"
+NVCC_FLAGS="-O3 -lineinfo -arch=native"
 
 if [ "$2" = "ncu" ]; then
+    MODE="ncu"
+    BENCH_N="${3:-4096}"
+else
+    MODE="run"
+    BENCH_N="${2:-4096}"
+fi
+
+scp "$source_file" "$REMOTE:~/$REMOTE_DIR/$source_file"
+ssh "$REMOTE" "cd $REMOTE_DIR && /usr/local/cuda/bin/nvcc $NVCC_FLAGS -o $bin_name $source_file -lcublas"
+
+if [ "$MODE" = "ncu" ]; then
     echo "=== Correctness Tests (unprofiled) ==="
     ssh "$REMOTE" "~/$REMOTE_DIR/$bin_name correctness"
 
@@ -25,13 +35,13 @@ if [ "$2" = "ncu" ]; then
     # "benchmark" mode launches only: 1 warmup kernel + 3 measured kernels
     # --launch-skip 1  → skip the warmup kernel
     # --launch-count 3 → profile the 3 measured kernels
-    ssh "$REMOTE" "cd $REMOTE_DIR && sudo /usr/local/cuda/bin/ncu --launch-skip 1 --launch-count 3 \
+    ssh -tt "$REMOTE" "cd $REMOTE_DIR && sudo /usr/local/cuda/bin/ncu --launch-skip 1 --launch-count 3 \
         --metrics gpu__time_duration.sum \
-        ./$bin_name benchmark" 2>&1 | tee /tmp/ncu_output.txt
+        ./$bin_name benchmark $BENCH_N" 2>&1 | tee /tmp/ncu_output.txt
 
     echo ""
     echo "=== Timing Summary ==="
-    awk '
+    awk -v bench_n="$BENCH_N" '
     { gsub(/\r/, "") }
     /gpu__time_duration\.sum/ {
         val = $NF
@@ -51,7 +61,7 @@ if [ "$2" = "ncu" ]; then
             else if (unit == "ms" || unit == "msecond") avg_ms = avg
             else if (unit == "s" || unit == "second")   avg_ms = avg * 1000
             else                                        avg_ms = avg
-            gflops = (2.0 * 4096 * 4096 * 4096) / (avg_ms * 1e6)
+            gflops = (2.0 * bench_n * bench_n * bench_n) / (avg_ms * 1e6)
             printf "  ─────────────────────\n"
             printf "  Avg kernel time: %.3f ms\n", avg_ms
             printf "  GFLOPS:          %.2f\n", gflops
@@ -60,5 +70,7 @@ if [ "$2" = "ncu" ]; then
         }
     }' /tmp/ncu_output.txt
 else
-    ssh "$REMOTE" "~/$REMOTE_DIR/$bin_name"
+    ssh "$REMOTE" "~/$REMOTE_DIR/$bin_name correctness"
+    echo ""
+    ssh "$REMOTE" "~/$REMOTE_DIR/$bin_name benchmark $BENCH_N"
 fi

@@ -149,7 +149,17 @@ int main(int argc, char *argv[]) {
   if (!correctness_only) {
     // ── Performance Benchmark (kernel launches for ncu profiling) ──
     {
-      const int N = 4096;
+      int N = 4096;
+      if (argc > 2) {
+        const char *value = argv[2];
+        char *end = nullptr;
+        long parsed = std::strtol(value, &end, 10);
+        if (end == value || *end != '\0' || parsed <= 0) {
+          fprintf(stderr, "Invalid benchmark size: %s\n", value);
+          return EXIT_FAILURE;
+        }
+        N = static_cast<int>(parsed);
+      }
       const int NUM_RUNS = 3;
       printf("=== Performance Benchmark (N=%d, 1 warmup + %d runs) ===\n", N,
              NUM_RUNS);
