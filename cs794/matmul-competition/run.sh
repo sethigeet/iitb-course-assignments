@@ -16,7 +16,7 @@ ssh "$REMOTE" "cd $REMOTE_DIR && /usr/local/cuda/bin/nvcc -O3 -lineinfo -o $bin_
 
 if [ "$2" = "ncu" ]; then
     echo "=== Correctness Tests (unprofiled) ==="
-    ssh "$REMOTE" "~/$REMOTE_DIR/$bin_name"
+    ssh "$REMOTE" "~/$REMOTE_DIR/$bin_name correctness"
 
     echo ""
     echo "========================================="

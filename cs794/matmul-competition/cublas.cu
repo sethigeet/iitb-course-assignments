@@ -110,6 +110,7 @@ static bool verify(int N, const float *ref, const float *gpu,
 // ─────────────────────────────────────────────────────────────────────
 int main(int argc, char *argv[]) {
   bool benchmark_only = (argc > 1 && strcmp(argv[1], "benchmark") == 0);
+  bool correctness_only = (argc > 1 && strcmp(argv[1], "correctness") == 0);
 
   if (!benchmark_only) {
     // ── Correctness tests (small sizes, CPU reference) ────────
@@ -145,27 +146,29 @@ int main(int argc, char *argv[]) {
     }
   } // !benchmark_only
 
-  // ── Performance Benchmark (kernel launches for ncu profiling) ──
-  {
-    const int N = 4096;
-    const int NUM_RUNS = 3;
-    printf("=== Performance Benchmark (N=%d, 1 warmup + %d runs) ===\n", N,
-           NUM_RUNS);
+  if (!correctness_only) {
+    // ── Performance Benchmark (kernel launches for ncu profiling) ──
+    {
+      const int N = 4096;
+      const int NUM_RUNS = 3;
+      printf("=== Performance Benchmark (N=%d, 1 warmup + %d runs) ===\n", N,
+             NUM_RUNS);
 
-    size_t elems = (size_t)N * N;
-    std::vector<float> A(elems), B(elems), C(elems);
-    for (size_t i = 0; i < elems; ++i) {
-      A[i] = (float)(i % 97) / 97.f;
-      B[i] = (float)((i * 7 + 3) % 97) / 97.f;
-    }
+      size_t elems = (size_t)N * N;
+      std::vector<float> A(elems), B(elems), C(elems);
+      for (size_t i = 0; i < elems; ++i) {
+        A[i] = (float)(i % 97) / 97.f;
+        B[i] = (float)((i * 7 + 3) % 97) / 97.f;
+      }
 
-    matmul_gpu(N, A.data(), B.data(), C.data());
-    printf("  Warmup complete.\n");
-
-    for (int r = 0; r < NUM_RUNS; ++r)
       matmul_gpu(N, A.data(), B.data(), C.data());
+      printf("  Warmup complete.\n");
 
-    printf("  %d measured runs complete.\n", NUM_RUNS);
+      for (int r = 0; r < NUM_RUNS; ++r)
+        matmul_gpu(N, A.data(), B.data(), C.data());
+
+      printf("  %d measured runs complete.\n", NUM_RUNS);
+    }
   }
 
   return EXIT_SUCCESS;
