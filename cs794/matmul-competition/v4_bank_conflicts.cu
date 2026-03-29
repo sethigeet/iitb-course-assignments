@@ -25,14 +25,15 @@
 // Each thread computes an R x R sub-tile in registers.
 constexpr int TILE = 64;
 constexpr int R = 4;
-constexpr int SMEM_STRIDE = TILE + 1;
+constexpr int A_SMEM_STRIDE = TILE + 1;
+constexpr int B_SMEM_STRIDE = TILE;
 template <int REG_TILE>
 __global__ void matmul_kernel_2d_block_tiled(const float *__restrict__ A,
                                              const float *__restrict__ B,
                                              float *__restrict__ C, int N) {
   extern __shared__ float smem[];
   float *As = smem;
-  float *Bs = smem + TILE * SMEM_STRIDE;
+  float *Bs = smem + TILE * A_SMEM_STRIDE;
 
   const int tx = threadIdx.x;
   const int ty = threadIdx.y;
@@ -73,15 +74,15 @@ __global__ void matmul_kernel_2d_block_tiled(const float *__restrict__ A,
       if (a_row < N && a_col + (VEC - 1) < N) {
         const float4 a_vec =
             reinterpret_cast<const float4 *>(&A[a_row * N + a_col])[0];
-        As[innerRow * SMEM_STRIDE + col4 + 0] = a_vec.x;
-        As[innerRow * SMEM_STRIDE + col4 + 1] = a_vec.y;
-        As[innerRow * SMEM_STRIDE + col4 + 2] = a_vec.z;
-        As[innerRow * SMEM_STRIDE + col4 + 3] = a_vec.w;
+        As[innerRow * A_SMEM_STRIDE + col4 + 0] = a_vec.x;
+        As[innerRow * A_SMEM_STRIDE + col4 + 1] = a_vec.y;
+        As[innerRow * A_SMEM_STRIDE + col4 + 2] = a_vec.z;
+        As[innerRow * A_SMEM_STRIDE + col4 + 3] = a_vec.w;
       } else {
 #pragma unroll
         for (int v = 0; v < VEC; ++v) {
           const int g_col = a_col + v;
-          As[innerRow * SMEM_STRIDE + col4 + v] =
+          As[innerRow * A_SMEM_STRIDE + col4 + v] =
               (a_row < N && g_col < N) ? A[a_row * N + g_col] : 0.0f;
         }
       }
@@ -90,17 +91,13 @@ __global__ void matmul_kernel_2d_block_tiled(const float *__restrict__ A,
       const int b_row = t * TILE + innerRow;
       const int b_col = blockIdx.x * TILE + col4;
       if (b_row < N && b_col + (VEC - 1) < N) {
-        const float4 b_vec =
+        reinterpret_cast<float4 *>(&Bs[innerRow * B_SMEM_STRIDE + col4])[0] =
             reinterpret_cast<const float4 *>(&B[b_row * N + b_col])[0];
-        Bs[innerRow * SMEM_STRIDE + col4 + 0] = b_vec.x;
-        Bs[innerRow * SMEM_STRIDE + col4 + 1] = b_vec.y;
-        Bs[innerRow * SMEM_STRIDE + col4 + 2] = b_vec.z;
-        Bs[innerRow * SMEM_STRIDE + col4 + 3] = b_vec.w;
       } else {
 #pragma unroll
         for (int v = 0; v < VEC; ++v) {
           const int g_col = b_col + v;
-          Bs[innerRow * SMEM_STRIDE + col4 + v] =
+          Bs[innerRow * B_SMEM_STRIDE + col4 + v] =
               (b_row < N && g_col < N) ? B[b_row * N + g_col] : 0.0f;
         }
       }
@@ -113,10 +110,10 @@ __global__ void matmul_kernel_2d_block_tiled(const float *__restrict__ A,
     for (int k = 0; k < TILE; ++k) {
 #pragma unroll
       for (int i = 0; i < REG_TILE; ++i) {
-        const float a_val = As[(local_row_base + i) * SMEM_STRIDE + k];
+        const float a_val = As[(local_row_base + i) * A_SMEM_STRIDE + k];
 #pragma unroll
         for (int j = 0; j < REG_TILE; ++j) {
-          reg[i][j] += a_val * Bs[k * SMEM_STRIDE + (local_col_base + j)];
+          reg[i][j] += a_val * Bs[k * B_SMEM_STRIDE + (local_col_base + j)];
         }
       }
     }
@@ -171,7 +168,8 @@ void matmul_gpu(int N, const float *A_h, const float *B_h, float *C_h) {
   {
     dim3 block(TILE / R, TILE / R);
     dim3 grid((N + TILE - 1) / TILE, (N + TILE - 1) / TILE);
-    size_t shared_bytes = 2 * TILE * SMEM_STRIDE * sizeof(float);
+    size_t shared_bytes =
+        (TILE * A_SMEM_STRIDE + TILE * B_SMEM_STRIDE) * sizeof(float);
 
     matmul_kernel_2d_block_tiled<R>
         <<<grid, block, shared_bytes>>>(A_d, B_d, C_d, N);

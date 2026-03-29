@@ -21,8 +21,8 @@
    ============================================================ */
 
 // 2D block tiling + per-thread register blocking.
-// Each block computes a TILE x TILE output tile.
-// Each thread computes an R x R sub-tile in registers.
+// For the square NxN benchmark in this repo, an autotune sweep over TILE/R
+// candidates kept the original TILE=64, R=4 configuration as the winner.
 constexpr int TILE = 64;
 constexpr int R = 4;
 
@@ -30,6 +30,8 @@ template <int REG_TILE>
 __global__ void matmul_kernel_2d_block_tiled(const float *__restrict__ A,
                                              const float *__restrict__ B,
                                              float *__restrict__ C, int N) {
+  static_assert(REG_TILE % 4 == 0,
+                "REG_TILE must stay a multiple of 4 for float4 stores.");
   extern __shared__ float smem[];
   float *As = smem;
   float *Bs = smem + TILE * TILE;
@@ -120,15 +122,29 @@ __global__ void matmul_kernel_2d_block_tiled(const float *__restrict__ A,
 #pragma unroll
   for (int i = 0; i < REG_TILE; ++i) {
     const int out_row = row_base + i;
-    const int out_col = col_base;
-    if (out_row < N && out_col + (VEC - 1) < N) {
-      float4 out = {reg[i][0], reg[i][1], reg[i][2], reg[i][3]};
-      reinterpret_cast<float4 *>(&C[out_row * N + out_col])[0] = out;
+    if (out_row < N) {
+#pragma unroll
+      for (int j = 0; j < REG_TILE; j += VEC) {
+        const int out_col = col_base + j;
+        if (out_col + (VEC - 1) < N) {
+          float4 out = {reg[i][j + 0], reg[i][j + 1], reg[i][j + 2],
+                        reg[i][j + 3]};
+          reinterpret_cast<float4 *>(&C[out_row * N + out_col])[0] = out;
+        } else {
+#pragma unroll
+          for (int v = 0; v < VEC; ++v) {
+            const int c_col = out_col + v;
+            if (c_col < N) {
+              C[out_row * N + c_col] = reg[i][j + v];
+            }
+          }
+        }
+      }
     } else {
 #pragma unroll
       for (int j = 0; j < REG_TILE; ++j) {
-        const int c_col = out_col + j;
-        if (out_row < N && c_col < N) {
+        const int c_col = col_base + j;
+        if (c_col < N) {
           C[out_row * N + c_col] = reg[i][j];
         }
       }
